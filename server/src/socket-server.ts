@@ -19,6 +19,12 @@ export function attachGameSocketServer(httpServer: HttpServer, path: string): Se
     path,
   });
 
+  registerGameSocketHandlers(io);
+  return io;
+}
+
+export function registerGameSocketHandlers(io: Server): void {
+
   // Do not open an outbound Redis connection while Vercel is still importing
   // the HTTP server export. Initialize it on the first Socket.IO connection.
   let redisReady: Promise<unknown | null> | null = null;
@@ -92,5 +98,4 @@ export function attachGameSocketServer(httpServer: HttpServer, path: string): Se
     });
   });
 
-  return io;
 }
