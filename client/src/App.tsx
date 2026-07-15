@@ -22,6 +22,14 @@ export default function App() {
   useEffect(() => {
     if (!roomId) return;
     requestState(roomId);
+    // Redis pub/sub giữa hai Vercel Function instance có thể bị gián đoạn khi
+    // một instance reconnect/scale. Poll nhẹ làm đường dự phòng; state vẫn do
+    // server-authoritative Redis cung cấp, không tính toán ở client.
+    const syncTimer = window.setInterval(() => requestState(roomId), 1_000);
+    const syncWhenVisible = () => {
+      if (document.visibilityState === 'visible') requestState(roomId);
+    };
+    document.addEventListener('visibilitychange', syncWhenVisible);
     let cancelled = false;
     const restoreSeat = async () => {
       const name = localStorage.getItem('tusac_name') || 'Người chơi';
@@ -43,6 +51,8 @@ export default function App() {
     const off = onConnect(restoreSeat);
     return () => {
       cancelled = true;
+      window.clearInterval(syncTimer);
+      document.removeEventListener('visibilitychange', syncWhenVisible);
       off();
     };
   }, [roomId]);
