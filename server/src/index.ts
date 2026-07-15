@@ -18,10 +18,11 @@ import { applyAction } from './engine.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3001;
 
-const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
+export const app = express();
+export const httpServer = createServer(app);
+export const io = new Server(httpServer, {
   cors: { origin: '*' }, // tunnel/cross-network: cho phép mọi origin
+  path: '/api/socket',
 });
 
 // Phục vụ frontend đã build (client build ra ../public).
@@ -93,7 +94,15 @@ app.get('*', (_req, res) => {
 
 setInterval(cleanupRooms, 5 * 60 * 1000);
 
-httpServer.listen(PORT, () => {
-  console.log(`\n  Tứ Sắc server chạy tại http://localhost:${PORT}`);
-  console.log(`  (build frontend rồi mở URL này, hoặc dev bằng: npm run dev)\n`);
-});
+// Chạy trực tiếp ở local/Render; khi được import bởi Vercel Function thì không
+// tự mở cổng mà export httpServer cho runtime quản lý.
+const isDirectRun =
+  Boolean(process.argv[1]) && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectRun) {
+  httpServer.listen(PORT, () => {
+    console.log(`\n  Tứ Sắc server chạy tại http://localhost:${PORT}`);
+    console.log(`  (build frontend rồi mở URL này, hoặc dev bằng: npm run dev)\n`);
+  });
+}
+
+export default httpServer;

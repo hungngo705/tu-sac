@@ -30,8 +30,8 @@ async function main() {
     }
   };
 
-  const a: Socket = ioc(URL);
-  const b: Socket = ioc(URL);
+  const a: Socket = ioc(URL, { path: '/api/socket' });
+  const b: Socket = ioc(URL, { path: '/api/socket' });
   let stateA: GameStateView | null = null;
   let stateB: GameStateView | null = null;
   a.on('state', (v) => (stateA = v));

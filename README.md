@@ -38,6 +38,17 @@ npm run start      # chạy server phục vụ cả web lẫn game tại cổng 
 
 Giờ chỉ cần **1 URL**: `http://localhost:3001`.
 
+### Deploy Vercel
+
+Dự án có sẵn `vercel.json` và Function Socket.IO tại `api/socket.ts`. Kết nối
+realtime dùng đường dẫn `/api/socket`; Vercel sẽ tự chạy `npm install` cho npm
+workspaces rồi build frontend vào `server/public`.
+
+> WebSocket trên Vercel Functions hiện ở Public Beta. Phòng chơi đang lưu trong
+> RAM nên phù hợp thử nghiệm nhỏ; Vercel không đảm bảo các kết nối tương lai vào
+> cùng một Function. Muốn vận hành ổn định trên nhiều instance cần chuyển trạng
+> thái phòng sang Redis, hoặc deploy nguyên server lên Render/Railway/Fly.io.
+
 ---
 
 ## 4. Cho 2 điện thoại KHÁC MẠNG cùng chơi (tunnel)

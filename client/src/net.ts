@@ -2,7 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { GameAction, GameStateView, Seat } from '@shared/types';
 
 // Cùng origin với server (đã phục vụ frontend). Dev thì Vite proxy lo.
-export const socket: Socket = io('/', { autoConnect: true });
+export const socket: Socket = io('/', { autoConnect: true, path: '/api/socket' });
 
 export function createRoom(name: string): Promise<{ roomId: string; seat: Seat }> {
   return new Promise((resolve) => socket.emit('createRoom', name, resolve));
