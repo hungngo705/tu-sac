@@ -89,12 +89,16 @@ export type Seat = 0 | 1;
 //  DRAW          - người tới lượt bốc 1 lá từ nọc
 //  REACT_DRAW    - trạng thái dự phòng cho biến thể cho phép nhà khác tranh lá bốc
 //  REACT_DRAW_SELF - người bốc tự xử lý lá mình bốc (ăn / tới / bỏ = chết)
+//  REACT_DRAW_WIN_SELF  - người bốc Tướng được ưu tiên xét Tới
+//  REACT_DRAW_WIN_OTHER - đối thủ được xét Tới bằng quân Tướng vừa bốc
 export type TurnStage =
   | 'DISCARD'
   | 'REACT_DISCARD'
   | 'DRAW'
   | 'REACT_DRAW'
-  | 'REACT_DRAW_SELF';
+  | 'REACT_DRAW_SELF'
+  | 'REACT_DRAW_WIN_SELF'
+  | 'REACT_DRAW_WIN_OTHER';
 
 // Nguồn của lá đang chờ: 'DISCARD' = do người khác đánh; 'DRAW' = vừa bốc lật.
 export interface PendingCard {

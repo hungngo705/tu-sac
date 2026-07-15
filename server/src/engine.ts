@@ -65,22 +65,33 @@ function doDraw(game: InternalGame, seat: Seat): ActionResult {
     return {};
   }
   const card = game.wall.shift()!;
-  // Biến thể 2 người: bình thường lá bốc chỉ do người bốc xử lý.
-  // Riêng Tướng có thể bị đối thủ giật nếu họ đang giữ Khạp Tướng cùng màu.
   game.pending = { card, from: seat, source: 'DRAW' };
   const opponent = other(seat);
   const matchingOpponentCards = game.players[opponent].hand.filter((c) => sameFace(c, card));
-  const opponentHasMatchingKingKhap =
-    card.rank === 'TUONG' &&
-    matchingOpponentCards.length === 3;
-  const opponentHasMatchingPair = card.rank !== 'TUONG' && matchingOpponentCards.length === 2;
-  const opponentMaySteal = opponentHasMatchingKingKhap || opponentHasMatchingPair;
+
+  // Tướng vừa bốc có thứ tự riêng: người bốc xét Tới trước, kế đến đối thủ.
+  // Nếu không ai Tới, Tướng trả về người bốc để nhận riêng hoặc ghép Sĩ-Tượng.
+  if (card.rank === 'TUONG') {
+    if (canWinWithPending(game, seat)) {
+      game.turn = seat;
+      game.turnStage = 'REACT_DRAW_WIN_SELF';
+      game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)} — được ưu tiên xét Tới.`;
+    } else if (canWinWithPending(game, opponent)) {
+      game.turn = opponent;
+      game.turnStage = 'REACT_DRAW_WIN_OTHER';
+      game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}. ${game.players[opponent].name} được xét Tới.`;
+    } else {
+      returnDrawnKingToDrawer(game);
+    }
+    return {};
+  }
+
+  const opponentHasMatchingPair = matchingOpponentCards.length === 2;
+  const opponentMaySteal = opponentHasMatchingPair;
   game.turn = opponentMaySteal ? opponent : seat;
   game.turnStage = opponentMaySteal ? 'REACT_DRAW' : 'REACT_DRAW_SELF';
   if (opponentHasMatchingPair) {
     game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}. ${game.players[opponent].name} có đôi — được quyền giật.`;
-  } else if (opponentHasMatchingKingKhap) {
-    game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}. ${game.players[opponent].name} có Khạp Tướng — được quyền giật.`;
   } else {
     game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}.`;
   }
@@ -115,6 +126,9 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
   if (game.phase !== 'PLAYING') return { error: 'Chưa vào ván' };
   if (!game.pending) return { error: 'Không có lá để ăn' };
   if (game.turn !== seat) return { error: 'Chưa tới lượt bạn' };
+  if (game.turnStage === 'REACT_DRAW_WIN_SELF' || game.turnStage === 'REACT_DRAW_WIN_OTHER') {
+    return { error: 'Đang xét Tới; hãy chọn Tới hoặc Không tới' };
+  }
 
   const pending = game.pending;
   const eaterIsDrawer = pending.source === 'DRAW' && pending.from === seat;
@@ -191,6 +205,23 @@ function doPass(game: InternalGame, seat: Seat): ActionResult {
   if (!game.pending) return { error: 'Không có gì để bỏ qua' };
   if (game.turn !== seat) return { error: 'Chưa tới lượt bạn' };
   const pending = game.pending;
+
+  if (game.turnStage === 'REACT_DRAW_WIN_SELF') {
+    const opponent = other(pending.from);
+    if (canWinWithPending(game, opponent)) {
+      game.turn = opponent;
+      game.turnStage = 'REACT_DRAW_WIN_OTHER';
+      game.lastAction = `${game.players[pending.from].name} không Tới. ${game.players[opponent].name} được xét Tới.`;
+    } else {
+      returnDrawnKingToDrawer(game);
+    }
+    return {};
+  }
+
+  if (game.turnStage === 'REACT_DRAW_WIN_OTHER') {
+    returnDrawnKingToDrawer(game);
+    return {};
+  }
 
   if (pending.source === 'DISCARD') {
     // Đối thủ không ăn lá vừa đánh => tự bốc 1 lá.
@@ -337,6 +368,55 @@ function buildScore(game: InternalGame, winner: Seat): ScoreResult {
 
 function sameFace(a: Card, b: Card): boolean {
   return a.rank === b.rank && a.color === b.color;
+}
+
+function returnDrawnKingToDrawer(game: InternalGame): void {
+  const pending = game.pending!;
+  game.turn = pending.from;
+  game.turnStage = 'REACT_DRAW_SELF';
+  game.lastAction = `Không ai Tới. ${game.players[pending.from].name} xử lý ${cardLabel(pending.card)}.`;
+}
+
+// Kiểm tra có ít nhất một cách dùng lá đang chờ làm nhóm cuối cùng để Tới.
+// Nhóm cuối tối đa 4 lá, nên chỉ cần duyệt 0..3 lá trên tay.
+function canWinWithPending(game: InternalGame, seat: Seat): boolean {
+  const pending = game.pending;
+  if (!pending) return false;
+  const hand = game.players[seat].hand;
+
+  const visit = (start: number, chosen: Card[]): boolean => {
+    const finalMeld = [...chosen, pending.card];
+    if (isWinMeld(finalMeld)) {
+      // Người bốc chỉ được nhận Tướng riêng hoặc ghép Sĩ-Tượng,
+      // không ghép Tướng vừa bốc thành đôi Tướng cùng màu.
+      const invalidDrawnKingPair =
+        pending.card.rank === 'TUONG' &&
+        pending.from === seat &&
+        chosen.length === 1 &&
+        sameFace(chosen[0], pending.card);
+      if (!invalidDrawnKingPair) {
+        const md = describeMeld(finalMeld, true)!;
+        const locked = chosen.filter((c) => isLockedKhapCard(hand, c));
+        const opensThatKhap =
+          locked.length === 3 &&
+          chosen.length === 3 &&
+          md.type === 'QUAN' &&
+          sameFace(chosen[0], pending.card);
+        const rest = hand.filter((c) => !chosen.some((picked) => picked.id === c.id));
+        if ((locked.length === 0 || opensThatKhap) && analyzeHand(rest).valid) return true;
+      }
+    }
+
+    if (chosen.length === 3) return false;
+    for (let i = start; i < hand.length; i++) {
+      chosen.push(hand[i]);
+      if (visit(i + 1, chosen)) return true;
+      chosen.pop();
+    }
+    return false;
+  };
+
+  return visit(0, []);
 }
 
 function isLockedKhapCard(hand: Card[], card: Card): boolean {

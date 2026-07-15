@@ -100,17 +100,16 @@ async function main() {
   await wait(300);
   check('bốc = lật ngửa lá chờ (DRAW)', stateB?.pending?.source === 'DRAW');
   const drawn = stateB!.pending!.card;
-  const opponentHasKingKhap =
-    drawn.rank === 'TUONG' &&
-    stateA!.yourHand.filter((card) => card.rank === drawn.rank && card.color === drawn.color).length === 3;
   const opponentHasPair =
     drawn.rank !== 'TUONG' &&
     stateA!.yourHand.filter((card) => card.rank === drawn.rank && card.color === drawn.color).length === 2;
   check(
-    'người bốc tự xử lý, trừ khi đối diện có đôi hoặc Khạp Tướng',
-    opponentHasKingKhap || opponentHasPair
-      ? stateB?.turn === 0 && stateB?.turnStage === 'REACT_DRAW'
-      : stateB?.turn === 1 && stateB?.turnStage === 'REACT_DRAW_SELF'
+    'lá bốc vào đúng bước xử lý/ưu tiên Tới',
+    drawn.rank === 'TUONG'
+      ? ['REACT_DRAW_WIN_SELF', 'REACT_DRAW_WIN_OTHER', 'REACT_DRAW_SELF'].includes(stateB!.turnStage)
+      : opponentHasPair
+        ? stateB?.turn === 0 && stateB?.turnStage === 'REACT_DRAW'
+        : stateB?.turn === 1 && stateB?.turnStage === 'REACT_DRAW_SELF'
   );
   if (opponentHasPair) {
     check(

@@ -191,11 +191,26 @@ function ActionBar({
   if (view.phase !== 'PLAYING' || !myTurn) return null;
   const stage = view.turnStage;
   const reacting = stage === 'REACT_DISCARD' || stage === 'REACT_DRAW' || stage === 'REACT_DRAW_SELF';
+  const checkingWin = stage === 'REACT_DRAW_WIN_SELF' || stage === 'REACT_DRAW_WIN_OTHER';
   const isDrawSelf = stage === 'REACT_DRAW_SELF';
   const isDrawnKingSelf = isDrawSelf && view.pending?.card.rank === 'TUONG';
 
   return (
     <div className="actions">
+      {checkingWin && (
+        <>
+          <button
+            className="btn btn--danger"
+            onClick={() => onAct({ type: 'DECLARE_WIN', cardIds: selected })}
+          >
+            Tới!
+          </button>
+          <button className="btn btn--ghost" onClick={() => onAct({ type: 'PASS' })}>
+            Không tới
+          </button>
+        </>
+      )}
+
       {/* Phản ứng với lá đang chờ: ăn / bỏ qua (hoặc bỏ = chết nếu tự bốc) */}
       {reacting && (
         <>

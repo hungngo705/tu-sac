@@ -195,13 +195,51 @@ console.log('== engine luật lượt / ăn bài ==');
 {
   const active = c('TUONG', 'RED');
   const trash = c('SI', 'GREEN');
-  const g = gameWith([trash], []);
+  const otherTrash = c('PHAO', 'WHITE');
+  const g = gameWith([trash], [otherTrash]);
   g.turn = 0;
   g.turnStage = 'DRAW';
   g.wall = [active, ...same('TOT', 'WHITE', 8)];
   applyAction(g, 0, { type: 'DRAW' });
-  check('bốc Tướng không có Khạp đối diện: người bốc tự xử lý', g.turn === 0 && g.turnStage === 'REACT_DRAW_SELF');
+  check('bốc Tướng khi chưa ai liền bài: người bốc tự xử lý', g.turn === 0 && g.turnStage === 'REACT_DRAW_SELF');
   check('Tướng vừa bốc không được bỏ', Boolean(applyAction(g, 0, { type: 'PASS' }).error));
+}
+{
+  const active = c('TUONG', 'YELLOW');
+  const round = [c('XE', 'WHITE'), c('PHAO', 'WHITE'), c('MA', 'WHITE')];
+  const g = gameWith(round, [c('SI', 'GREEN')]);
+  g.turn = 0;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('TOT', 'WHITE', 8)];
+  applyAction(g, 0, { type: 'DRAW' });
+  check('người bốc Tướng liền bài được ưu tiên Tới trước', g.turn === 0 && g.turnStage === 'REACT_DRAW_WIN_SELF');
+  const win = applyAction(g, 0, { type: 'DECLARE_WIN' });
+  check('người bốc được Tới bằng Tướng đơn', !win.error && g.phase === 'FINISHED' && g.winner === 0);
+}
+{
+  const active = c('TUONG', 'WHITE');
+  const round = [c('XE', 'GREEN'), c('PHAO', 'GREEN'), c('MA', 'GREEN')];
+  const g = gameWith([c('SI', 'RED')], round);
+  g.turn = 0;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('TOT', 'YELLOW', 8)];
+  applyAction(g, 0, { type: 'DRAW' });
+  check('A chưa liền bài thì B được quyền xét Tới', g.turn === 1 && g.turnStage === 'REACT_DRAW_WIN_OTHER');
+  const win = applyAction(g, 1, { type: 'DECLARE_WIN' });
+  check('B được Tới bằng Tướng A vừa bốc', !win.error && g.phase === 'FINISHED' && g.winner === 1);
+}
+{
+  const active = c('TUONG', 'GREEN');
+  const roundA = [c('XE', 'RED'), c('PHAO', 'RED'), c('MA', 'RED')];
+  const roundB = [c('XE', 'YELLOW'), c('PHAO', 'YELLOW'), c('MA', 'YELLOW')];
+  const g = gameWith(roundA, roundB);
+  g.pending = { card: active, from: 0, source: 'DRAW' };
+  g.turn = 0;
+  g.turnStage = 'REACT_DRAW_WIN_SELF';
+  const aPass = applyAction(g, 0, { type: 'PASS' });
+  check('A không chọn Tới thì chuyển quyền xét Tới cho B', !aPass.error && g.turn === 1 && g.turnStage === 'REACT_DRAW_WIN_OTHER');
+  const bPass = applyAction(g, 1, { type: 'PASS' });
+  check('cả hai không Tới thì quyền nhận Tướng trả lại A', !bPass.error && g.turn === 0 && g.turnStage === 'REACT_DRAW_SELF');
 }
 {
   const active = c('XE', 'YELLOW');
@@ -287,24 +325,24 @@ console.log('== engine luật lượt / ăn bài ==');
 {
   const active = c('TUONG', 'RED');
   const khap = same('TUONG', 'RED', 3);
-  const g = gameWith([], khap);
+  const g = gameWith([c('SI', 'GREEN')], khap);
   g.turn = 0;
   g.turnStage = 'DRAW';
   g.wall = [active, ...same('TOT', 'GREEN', 8)];
   applyAction(g, 0, { type: 'DRAW' });
-  check('Khạp Tướng đối diện được quyền giật lá vừa bốc', g.turn === 1 && g.turnStage === 'REACT_DRAW');
-  const result = applyAction(g, 1, { type: 'EAT', cardIds: khap.map((x) => x.id) });
-  check('giật Khạp Tướng tạo thành Khui', !result.error && g.players[1].exposedMelds[0]?.type === 'QUAN');
+  check('Khạp Tướng đối diện chỉ được xét Tới, không giật trước người bốc', g.turn === 1 && g.turnStage === 'REACT_DRAW_WIN_OTHER');
+  const result = applyAction(g, 1, { type: 'DECLARE_WIN', cardIds: khap.map((x) => x.id) });
+  check('đối diện có thể Tới bằng Khạp Tướng và lá vừa bốc', !result.error && g.phase === 'FINISHED' && g.winner === 1);
 }
 {
   const active = c('TUONG', 'GREEN');
   const khap = same('TUONG', 'GREEN', 3);
-  const g = gameWith([], khap);
+  const g = gameWith([c('SI', 'WHITE')], khap);
   g.pending = { card: active, from: 0, source: 'DRAW' };
   g.turn = 1;
-  g.turnStage = 'REACT_DRAW';
+  g.turnStage = 'REACT_DRAW_WIN_OTHER';
   const result = applyAction(g, 1, { type: 'PASS' });
-  check('đối diện có thể không giật Khạp Tướng, quyền trả về người bốc', !result.error && g.turn === 0 && g.turnStage === 'REACT_DRAW_SELF');
+  check('B không Tới thì Tướng trả về A để nhận hoặc ghép Sĩ–Tượng', !result.error && g.turn === 0 && g.turnStage === 'REACT_DRAW_SELF');
 }
 {
   const hidden = [c('XE', 'WHITE'), c('PHAO', 'WHITE'), c('MA', 'WHITE')];
