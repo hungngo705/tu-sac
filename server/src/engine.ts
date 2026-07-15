@@ -161,7 +161,8 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
   }
   const takingMatchingCards =
     pending.card.rank !== 'TUONG' &&
-    (handCards.length === 1 || handCards.length === 2) &&
+    handCards.length >= 1 &&
+    handCards.length <= 3 &&
     handCards.every((c) => sameFace(c, pending.card));
   const stealingWithPair = takingAnotherPlayersDraw && handCards.length === 2 && takingMatchingCards;
 
@@ -175,9 +176,9 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
     return { error: 'Khạp không được phá; chỉ được dùng cả Khạp để Khui' };
   }
 
-  // Một lá/đôi cùng quân đang chờ luôn được quyền ăn chẵn thành đôi/bộ ba.
-  // Quyền ăn chẵn ưu tiên hơn kiểm tra bài bụng/giảm rác, dù lá đó do đối thủ
-  // đánh hay chính mình bốc.
+  // Một lá/đôi/Khạp cùng quân đang chờ luôn được quyền ăn chẵn thành
+  // đôi/bộ ba/Khui. Quyền ăn chẵn ưu tiên hơn kiểm tra bài bụng/giảm rác,
+  // dù lá đó do đối thủ đánh hay chính mình bốc.
   if (!takingMatchingCards && violatesBaiBung(p.hand, handCards)) {
     return { error: 'Phạm luật bài bụng: ăn chẵn này sẽ phá bộ lẻ trên tay' };
   }

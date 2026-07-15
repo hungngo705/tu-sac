@@ -149,6 +149,28 @@ console.log('== engine luật lượt / ăn bài ==');
   check('đôi Sĩ trắng được ăn lá mình bốc dù đang dính bộ Tướng-Sĩ-Tượng', !eat.error && g.players[1].exposedMelds[0]?.type === 'KHAN');
 }
 {
+  const khap = same('TUONG_ELE', 'RED', 3);
+  const hand = [...khap, c('TUONG', 'RED'), c('SI', 'RED')];
+  const active = c('TUONG_ELE', 'RED');
+  const g = gameWith([], hand);
+  g.pending = { card: active, from: 0, source: 'DISCARD' };
+  g.turn = 1;
+  g.turnStage = 'REACT_DISCARD';
+  const eat = applyAction(g, 1, { type: 'EAT', cardIds: khap.map((card) => card.id) });
+  check('Khạp Tượng đỏ được ăn lá đối thủ đánh để Khui dù làm tăng rác bộ Tướng-Sĩ-Tượng', !eat.error && g.players[1].exposedMelds[0]?.type === 'QUAN');
+}
+{
+  const khap = same('TUONG_ELE', 'RED', 3);
+  const hand = [...khap, c('TUONG', 'RED'), c('SI', 'RED')];
+  const active = c('TUONG_ELE', 'RED');
+  const g = gameWith([], hand);
+  g.pending = { card: active, from: 1, source: 'DRAW' };
+  g.turn = 1;
+  g.turnStage = 'REACT_DRAW_SELF';
+  const eat = applyAction(g, 1, { type: 'EAT', cardIds: khap.map((card) => card.id) });
+  check('Khạp Tượng đỏ được ăn lá tự bốc để Khui dù làm tăng rác bộ Tướng-Sĩ-Tượng', !eat.error && g.players[1].exposedMelds[0]?.type === 'QUAN');
+}
+{
   const xe = c('XE', 'GREEN');
   const phao = c('PHAO', 'GREEN');
   const active = c('MA', 'GREEN');
