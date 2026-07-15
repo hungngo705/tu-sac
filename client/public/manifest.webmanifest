@@ -1,0 +1,19 @@
+{
+  "name": "Tứ Sắc Online",
+  "short_name": "Tứ Sắc",
+  "description": "Chơi bài Tứ Sắc online dành cho 2 người.",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b3d2e",
+  "theme_color": "#0b3d2e",
+  "icons": [
+    {
+      "src": "/tu-sac-cat.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
