@@ -2,17 +2,43 @@ import { io, Socket } from 'socket.io-client';
 import { GameAction, GameStateView, Seat } from '@shared/types';
 
 // Cùng origin với server (đã phục vụ frontend). Dev thì Vite proxy lo.
-export const socket: Socket = io('/', { autoConnect: true, path: '/api/socket' });
+export const socket: Socket = io('/', {
+  autoConnect: true,
+  path: '/api/socket',
+  // A polling session can be routed to different Vercel Function instances.
+  transports: ['websocket'],
+  timeout: 12_000,
+});
 
-export function createRoom(name: string): Promise<{ roomId: string; seat: Seat }> {
-  return new Promise((resolve) => socket.emit('createRoom', name, resolve));
+function waitForConnection(): Promise<void> {
+  if (socket.connected) return Promise.resolve();
+  socket.connect();
+  return new Promise((resolve, reject) => {
+    const finish = (error?: Error) => {
+      window.clearTimeout(timer);
+      socket.off('connect', onConnect);
+      socket.off('connect_error', onError);
+      error ? reject(error) : resolve();
+    };
+    const onConnect = () => finish();
+    const onError = () => finish(new Error('Không kết nối được máy chủ trò chơi'));
+    const timer = window.setTimeout(() => finish(new Error('Máy chủ không phản hồi')), 12_000);
+    socket.once('connect', onConnect);
+    socket.once('connect_error', onError);
+  });
 }
 
-export function joinRoom(
+export async function createRoom(name: string): Promise<{ roomId: string; seat: Seat }> {
+  await waitForConnection();
+  return socket.timeout(10_000).emitWithAck('createRoom', name);
+}
+
+export async function joinRoom(
   roomId: string,
   name: string
 ): Promise<{ ok: boolean; seat?: Seat; error?: string }> {
-  return new Promise((resolve) => socket.emit('joinRoom', roomId, name, resolve));
+  await waitForConnection();
+  return socket.timeout(10_000).emitWithAck('joinRoom', roomId, name);
 }
 
 export function sendAction(roomId: string, action: GameAction): void {

@@ -1,6 +1,7 @@
 import { customAlphabet } from 'nanoid';
 import { GameStateView, PublicPlayer, Seat } from '../../shared/types.js';
 import { InternalGame, InternalPlayer, newGame } from './game.js';
+import { redis } from './redis.js';
 
 // Mã phòng 4 ký tự dễ đọc, dễ gõ trên điện thoại.
 const genRoomId = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 4);
@@ -12,10 +13,30 @@ export interface Room {
 }
 
 const rooms = new Map<string, Room>();
+const ROOM_TTL_SECONDS = 6 * 60 * 60;
+const roomKey = (id: string) => `tusac:room:${id.toUpperCase()}`;
+const socketKey = (id: string) => `tusac:socket:${id}`;
 
-export function createRoom(hostName: string, socketId: string): { room: Room; seat: Seat } {
+async function persistRoom(room: Room): Promise<void> {
+  if (redis) {
+    await redis.set(roomKey(room.id), JSON.stringify(room), { EX: ROOM_TTL_SECONDS });
+    return;
+  }
+  rooms.set(room.id, room);
+}
+
+async function rememberSocket(socketId: string, roomId: string): Promise<void> {
+  if (redis) {
+    await redis.set(socketKey(socketId), roomId, { EX: ROOM_TTL_SECONDS });
+  }
+}
+
+export async function createRoom(
+  hostName: string,
+  socketId: string
+): Promise<{ room: Room; seat: Seat }> {
   let id = genRoomId();
-  while (rooms.has(id)) id = genRoomId();
+  while (await getRoom(id)) id = genRoomId();
   const host: InternalPlayer = {
     seat: 0,
     name: hostName || 'Người chơi 1',
@@ -27,16 +48,17 @@ export function createRoom(hostName: string, socketId: string): { room: Room; se
   };
   const game = newGame([host]);
   const room: Room = { id, game, createdAt: Date.now() };
-  rooms.set(id, room);
+  await persistRoom(room);
+  await rememberSocket(socketId, id);
   return { room, seat: 0 };
 }
 
-export function joinRoom(
+export async function joinRoom(
   roomId: string,
   name: string,
   socketId: string
-): { ok: boolean; seat?: Seat; error?: string } {
-  const room = rooms.get(roomId.toUpperCase());
+): Promise<{ ok: boolean; seat?: Seat; error?: string }> {
+  const room = await getRoom(roomId);
   if (!room) return { ok: false, error: 'Không tìm thấy phòng' };
   const g = room.game;
   // Cho phép reconnect: nếu có ghế đang mất kết nối, chiếm lại.
@@ -52,41 +74,60 @@ export function joinRoom(
       exposedMelds: [],
       discardPile: [],
     });
+    await persistRoom(room);
+    await rememberSocket(socketId, room.id);
     return { ok: true, seat };
   }
   if (disconnected) {
     disconnected.socketId = socketId;
     disconnected.connected = true;
     if (name) disconnected.name = name;
+    await persistRoom(room);
+    await rememberSocket(socketId, room.id);
     return { ok: true, seat: disconnected.seat };
   }
   return { ok: false, error: 'Phòng đã đủ người' };
 }
 
-export function getRoom(roomId: string): Room | undefined {
-  return rooms.get(roomId.toUpperCase());
+export async function getRoom(roomId: string): Promise<Room | undefined> {
+  const id = roomId.toUpperCase();
+  if (!redis) return rooms.get(id);
+  const value = await redis.get(roomKey(id));
+  return value ? (JSON.parse(value) as Room) : undefined;
 }
 
-export function findRoomBySocket(socketId: string): Room | undefined {
+export async function findRoomBySocket(socketId: string): Promise<Room | undefined> {
+  if (redis) {
+    const roomId = await redis.get(socketKey(socketId));
+    return roomId ? getRoom(roomId) : undefined;
+  }
   for (const room of rooms.values()) {
     if (room.game.players.some((p) => p.socketId === socketId)) return room;
   }
   return undefined;
 }
 
-export function markDisconnected(socketId: string): Room | undefined {
-  const room = findRoomBySocket(socketId);
+export async function markDisconnected(socketId: string): Promise<Room | undefined> {
+  const room = await findRoomBySocket(socketId);
   if (!room) return undefined;
   const p = room.game.players.find((pl) => pl.socketId === socketId);
   if (p) {
     p.connected = false;
     p.socketId = null;
   }
+  await persistRoom(room);
+  if (redis) await redis.del(socketKey(socketId));
   return room;
+}
+
+export async function saveRoom(room: Room): Promise<void> {
+  await persistRoom(room);
 }
 
 // Dọn phòng cũ (rỗng hoặc quá 6 giờ) để không rò rỉ bộ nhớ.
 export function cleanupRooms(): void {
+  // Redis rooms expire automatically. This cleanup only applies to local RAM.
+  if (redis) return;
   const now = Date.now();
   for (const [id, room] of rooms) {
     const allGone = room.game.players.every((p) => !p.connected);

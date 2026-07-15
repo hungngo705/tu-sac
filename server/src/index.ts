@@ -12,8 +12,10 @@ import {
   joinRoom,
   markDisconnected,
   Room,
+  saveRoom,
 } from './rooms.js';
 import { applyAction } from './engine.js';
+import { configureRedis } from './redis.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3001;
@@ -23,6 +25,20 @@ export const httpServer = createServer(app);
 export const io = new Server(httpServer, {
   cors: { origin: '*' }, // tunnel/cross-network: cho phép mọi origin
   path: '/api/socket',
+});
+
+// Redis shares rooms and Socket.IO broadcasts between Vercel instances.
+// Gate Socket.IO connections until setup finishes without using top-level
+// await, because Vercel may bundle a Function entrypoint as CommonJS.
+const redisReady = configureRedis(io);
+io.use(async (_socket, next) => {
+  try {
+    await redisReady;
+    next();
+  } catch (error) {
+    console.error('Redis initialization failed:', error);
+    next(new Error('Không kết nối được kho dữ liệu phòng'));
+  }
 });
 
 // Phục vụ frontend đã build (client build ra ../public).
@@ -41,18 +57,18 @@ function broadcast(room: Room) {
 }
 
 io.on('connection', (socket) => {
-  socket.on('createRoom', (name: string, cb) => {
-    const { room, seat } = createRoom(name, socket.id);
-    socket.join(room.id);
+  socket.on('createRoom', async (name: string, cb) => {
+    const { room, seat } = await createRoom(name, socket.id);
+    await socket.join(room.id);
     cb({ roomId: room.id, seat });
     broadcast(room);
   });
 
-  socket.on('joinRoom', (roomId: string, name: string, cb) => {
-    const res = joinRoom(roomId, name, socket.id);
+  socket.on('joinRoom', async (roomId: string, name: string, cb) => {
+    const res = await joinRoom(roomId, name, socket.id);
     if (res.ok) {
-      const room = getRoom(roomId)!;
-      socket.join(room.id);
+      const room = (await getRoom(roomId))!;
+      await socket.join(room.id);
       cb(res);
       broadcast(room);
     } else {
@@ -60,8 +76,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('action', (roomId: string, action: GameAction) => {
-    const room = getRoom(roomId);
+  socket.on('action', async (roomId: string, action: GameAction) => {
+    const room = await getRoom(roomId);
     if (!room) return;
     const actor = room.game.players.find((p) => p.socketId === socket.id);
     if (!actor) return;
@@ -69,18 +85,19 @@ io.on('connection', (socket) => {
     if (result.error) {
       socket.emit('error', result.error);
     }
+    await saveRoom(room);
     broadcast(room);
   });
 
-  socket.on('requestState', (roomId: string) => {
-    const room = getRoom(roomId);
+  socket.on('requestState', async (roomId: string) => {
+    const room = await getRoom(roomId);
     if (!room) return;
     const p = room.game.players.find((pl) => pl.socketId === socket.id);
     socket.emit('state', buildView(room, p ? p.seat : null));
   });
 
-  socket.on('disconnect', () => {
-    const room = markDisconnected(socket.id);
+  socket.on('disconnect', async () => {
+    const room = await markDisconnected(socket.id);
     if (room) broadcast(room);
   });
 });

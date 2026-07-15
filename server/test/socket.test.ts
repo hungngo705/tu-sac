@@ -2,6 +2,7 @@
 // Chạy: npx tsx test/socket.test.ts
 import { io as ioc, Socket } from 'socket.io-client';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { GameStateView } from '../../shared/types.js';
 
 const PORT = 3099;
@@ -12,7 +13,8 @@ function wait(ms: number) {
 }
 
 async function main() {
-  const srv = spawn(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'src/index.ts'], {
+  const tsxCli = fileURLToPath(import.meta.resolve('tsx/cli'));
+  const srv = spawn(process.execPath, [tsxCli, 'src/index.ts'], {
     env: { ...process.env, PORT: String(PORT) },
     stdio: 'ignore',
   });

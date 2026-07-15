@@ -4,7 +4,9 @@
   "outputDirectory": "server/public",
   "functions": {
     "api/socket.ts": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "memory": 1024
     }
-  }
+  },
+  "regions": ["sin1"]
 }

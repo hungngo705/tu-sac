@@ -44,10 +44,16 @@ Dự án có sẵn `vercel.json` và Function Socket.IO tại `api/socket.ts`. K
 realtime dùng đường dẫn `/api/socket`; Vercel sẽ tự chạy `npm install` cho npm
 workspaces rồi build frontend vào `server/public`.
 
-> WebSocket trên Vercel Functions hiện ở Public Beta. Phòng chơi đang lưu trong
-> RAM nên phù hợp thử nghiệm nhỏ; Vercel không đảm bảo các kết nối tương lai vào
-> cùng một Function. Muốn vận hành ổn định trên nhiều instance cần chuyển trạng
-> thái phòng sang Redis, hoặc deploy nguyên server lên Render/Railway/Fly.io.
+Trước khi deploy production, cần nối một Redis database với project:
+
+1. Vào **Vercel Dashboard → Marketplace → Storage → Redis**.
+2. Tạo database ở region gần `sin1`, rồi kết nối nó với project này.
+3. Kiểm tra project đã có biến môi trường `REDIS_URL` (integration tự thêm biến này).
+4. Redeploy bản mới nhất và bật **Fluid Compute** trong **Settings → Functions**.
+
+Redis lưu phòng trong 6 giờ và đồng bộ sự kiện Socket.IO giữa các Function instance.
+Không có `REDIS_URL`, server vẫn chạy được ở local bằng RAM nhưng không phù hợp để
+hai thiết bị chơi ổn định trên Vercel.
 
 ---
 

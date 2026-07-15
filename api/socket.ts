@@ -1,3 +1,5 @@
-// Vercel Function entrypoint. Vercel WebSocket Public Beta accepts a Node HTTP
-// server export; Socket.IO is attached in server/src/index.ts.
-export { httpServer as default } from '../server/src/index.js';
+// Direct default export matches Vercel's WebSocket Function contract. The
+// extensionless import also lets the Vercel TypeScript bundler trace the file.
+import { httpServer } from '../server/src/index';
+
+export default httpServer;

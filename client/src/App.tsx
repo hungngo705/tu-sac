@@ -28,19 +28,27 @@ export default function App() {
   }
 
   async function handleCreate(name: string) {
-    const res = await createRoom(name);
-    setRoomId(res.roomId);
-    localStorage.setItem('tusac_name', name);
+    try {
+      const res = await createRoom(name);
+      setRoomId(res.roomId);
+      localStorage.setItem('tusac_name', name);
+    } catch {
+      showToast('Không kết nối được máy chủ trò chơi');
+    }
   }
 
   async function handleJoin(code: string, name: string) {
-    const res = await joinRoom(code, name);
-    if (!res.ok) {
-      showToast(res.error || 'Không vào được phòng');
-      return;
+    try {
+      const res = await joinRoom(code, name);
+      if (!res.ok) {
+        showToast(res.error || 'Không vào được phòng');
+        return;
+      }
+      setRoomId(code.toUpperCase());
+      localStorage.setItem('tusac_name', name);
+    } catch {
+      showToast('Không kết nối được máy chủ trò chơi');
     }
-    setRoomId(code.toUpperCase());
-    localStorage.setItem('tusac_name', name);
   }
 
   const inGame = roomId && view;
