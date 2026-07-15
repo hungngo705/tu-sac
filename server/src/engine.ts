@@ -159,11 +159,11 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
   if (takingAnotherPlayersDraw && !isPriorityTake(pending.card, handCards, md)) {
     return { error: 'Ngoài lượt chỉ được giật lá bốc bằng đúng đôi cùng quân hoặc Khạp Tướng' };
   }
-  const stealingWithPair =
-    takingAnotherPlayersDraw &&
+  const takingWithPair =
     pending.card.rank !== 'TUONG' &&
     handCards.length === 2 &&
     handCards.every((c) => sameFace(c, pending.card));
+  const stealingWithPair = takingAnotherPlayersDraw && takingWithPair;
 
   const locked = handCards.filter((c) => isLockedKhapCard(p.hand, c));
   const opensThatKhap =
@@ -175,13 +175,14 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
     return { error: 'Khạp không được phá; chỉ được dùng cả Khạp để Khui' };
   }
 
-  // Luật bài bụng: cấm dùng đôi trên tay ăn chẵn nếu phá bộ lẻ cùng màu.
-  if (!stealingWithPair && violatesBaiBung(p.hand, handCards)) {
+  // Đúng đôi cùng quân đang chờ luôn được quyền ăn chẵn. Quyền ăn đôi ưu tiên
+  // hơn kiểm tra bài bụng/giảm rác, dù lá đó do đối thủ đánh hay chính mình bốc.
+  if (!takingWithPair && violatesBaiBung(p.hand, handCards)) {
     return { error: 'Phạm luật bài bụng: ăn chẵn này sẽ phá bộ lẻ trên tay' };
   }
 
   const remaining = p.hand.filter((c) => !handCards.some((h) => h.id === c.id));
-  if (!stealingWithPair && countTrash(remaining) > countTrash(p.hand)) {
+  if (!takingWithPair && countTrash(remaining) > countTrash(p.hand)) {
     return { error: 'Không được ăn nếu làm tăng số lá rác trên tay' };
   }
 

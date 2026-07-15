@@ -115,6 +115,28 @@ console.log('== engine luật lượt / ăn bài ==');
   check('nhà kế được ăn lá tỳ thành đôi', !applyAction(g, 1, { type: 'EAT', cardIds: [own.id] }).error && g.players[1].exposedMelds[0]?.type === 'DOI');
 }
 {
+  const pair = same('SI', 'WHITE', 2);
+  const hand = [...pair, c('TUONG', 'WHITE'), c('TUONG_ELE', 'WHITE')];
+  const active = c('SI', 'WHITE');
+  const g = gameWith([], hand);
+  g.pending = { card: active, from: 0, source: 'DISCARD' };
+  g.turn = 1;
+  g.turnStage = 'REACT_DISCARD';
+  const eat = applyAction(g, 1, { type: 'EAT', cardIds: pair.map((card) => card.id) });
+  check('đôi Sĩ trắng được ăn lá đối thủ đánh dù đang dính bộ Tướng-Sĩ-Tượng', !eat.error && g.players[1].exposedMelds[0]?.type === 'KHAN');
+}
+{
+  const pair = same('SI', 'WHITE', 2);
+  const hand = [...pair, c('TUONG', 'WHITE'), c('TUONG_ELE', 'WHITE')];
+  const active = c('SI', 'WHITE');
+  const g = gameWith([], hand);
+  g.pending = { card: active, from: 1, source: 'DRAW' };
+  g.turn = 1;
+  g.turnStage = 'REACT_DRAW_SELF';
+  const eat = applyAction(g, 1, { type: 'EAT', cardIds: pair.map((card) => card.id) });
+  check('đôi Sĩ trắng được ăn lá mình bốc dù đang dính bộ Tướng-Sĩ-Tượng', !eat.error && g.players[1].exposedMelds[0]?.type === 'KHAN');
+}
+{
   const xe = c('XE', 'GREEN');
   const phao = c('PHAO', 'GREEN');
   const active = c('MA', 'GREEN');
