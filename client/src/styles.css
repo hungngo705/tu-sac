@@ -332,6 +332,10 @@ body {
   font-size: 17px;
 }
 
+.actions .btn--eat {
+  flex: 1.5;
+}
+
 /* ====== Card ====== */
 .card {
   width: 50px;

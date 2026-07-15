@@ -220,7 +220,7 @@ function ActionBar({
             </button>
           )}
           <button
-            className="btn"
+            className="btn btn--eat"
             disabled={selected.length === 0}
             onClick={() => onAct({ type: 'EAT', cardIds: selected })}
           >
