@@ -1,6 +1,5 @@
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
-import { registerGameSocketHandlers } from '../server/src/socket-server.js';
 
 // Vercel detects the WebSocket server from this entrypoint's direct
 // createServer() + default export. Moving creation into another module makes
@@ -10,6 +9,8 @@ const io = new Server(httpServer, {
   cors: { origin: '*' },
   path: '/api/socket',
 });
-registerGameSocketHandlers(io);
+io.on('connection', (socket) => {
+  socket.on('ping-test', (callback) => callback({ ok: true }));
+});
 
 export default httpServer;
