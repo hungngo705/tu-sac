@@ -151,7 +151,7 @@ function TopBar({ view, onToast }: { view: GameStateView; onToast: (m: string) =
       <span>
         Phòng <span className="room-code">{view.roomId}</span>
       </span>
-      <button className="btn btn--ghost" style={{ width: 'auto', padding: '4px 12px', fontSize: 13 }} onClick={copyLink}>
+      <button className="btn btn--ghost invite-btn" onClick={copyLink}>
         Phương đẹp gái
       </button>
     </div>
@@ -160,10 +160,10 @@ function TopBar({ view, onToast }: { view: GameStateView; onToast: (m: string) =
 
 function DiscardPiles({ view }: { view: GameStateView }) {
   return (
-    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
+    <div className="discard-piles">
       {view.players.map((p) => (
-        <div key={p.seat} style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 3 }}>Bài bỏ · {p.name}</div>
+        <div className="discard-pile" key={p.seat}>
+          <div className="discard-label">Bài bỏ · {p.name}</div>
           <div className="discard-row">
             {p.discardPile.slice(-8).map((c) => (
               <CardView key={c.id} card={c} small disabled />
@@ -214,6 +214,11 @@ function ActionBar({
       {/* Phản ứng với lá đang chờ: ăn / bỏ qua (hoặc bỏ = chết nếu tự bốc) */}
       {reacting && (
         <>
+          {!isDrawnKingSelf && (
+            <button className="btn btn--ghost" onClick={() => onAct({ type: 'PASS' })}>
+              {isDrawSelf ? 'Bỏ lá bốc' : 'Bỏ qua'}
+            </button>
+          )}
           <button
             className="btn"
             disabled={selected.length === 0}
@@ -224,11 +229,6 @@ function ActionBar({
           {isDrawnKingSelf && (
             <button className="btn" onClick={() => onAct({ type: 'EAT', cardIds: [] })}>
               Nhận Tướng
-            </button>
-          )}
-          {!isDrawnKingSelf && (
-            <button className="btn btn--ghost" onClick={() => onAct({ type: 'PASS' })}>
-              {isDrawSelf ? 'Bỏ lá bốc' : 'Bỏ qua'}
             </button>
           )}
           <button
