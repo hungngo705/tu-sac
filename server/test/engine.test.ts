@@ -1,0 +1,331 @@
+// Test engine phân rã bài + tính lệnh + luật bài bụng.
+// Chạy: npx tsx test/engine.test.ts
+import { Card, Color, Rank } from '../../shared/types.js';
+import {
+  analyzeHand,
+  countTrash,
+  describeMeld,
+  isEatableMeld,
+  isWinMeld,
+  meldPoints,
+  violatesBaiBung,
+} from '../../shared/melds.js';
+import { applyAction } from '../src/engine.js';
+import { InternalGame } from '../src/game.js';
+
+let pass = 0;
+let fail = 0;
+function check(name: string, cond: boolean) {
+  if (cond) {
+    pass++;
+    console.log('  ✓', name);
+  } else {
+    fail++;
+    console.log('  ✗ FAIL:', name);
+  }
+}
+
+let uid = 0;
+function c(rank: Rank, color: Color): Card {
+  return { id: `${rank}-${color}-${uid++}`, rank, color };
+}
+function same(rank: Rank, color: Color, n: number): Card[] {
+  return Array.from({ length: n }, () => c(rank, color));
+}
+
+console.log('== isEatableMeld / isWinMeld ==');
+check('3 giống hệt ăn được', isEatableMeld(same('XE', 'RED', 3)));
+check('4 giống hệt ăn được', isEatableMeld(same('MA', 'GREEN', 4)));
+check('ăn thành đôi hợp lệ', isEatableMeld(same('TOT', 'RED', 2)));
+check('Xe-Pháo-Mã cùng màu ăn được', isEatableMeld([c('XE', 'RED'), c('PHAO', 'RED'), c('MA', 'RED')]));
+check('Xe-Pháo-Mã khác màu KHÔNG', !isEatableMeld([c('XE', 'RED'), c('PHAO', 'GREEN'), c('MA', 'RED')]));
+check('Tướng-Sĩ-Tượng cùng màu ăn được', isEatableMeld([c('TUONG', 'RED'), c('SI', 'RED'), c('TUONG_ELE', 'RED')]));
+check('3 Tốt khác màu ăn được', isEatableMeld([c('TOT', 'RED'), c('TOT', 'GREEN'), c('TOT', 'YELLOW')]));
+check('đôi vừa ăn được vừa là nhóm tới', isEatableMeld(same('XE', 'RED', 2)) && isWinMeld(same('XE', 'RED', 2)));
+check('Tướng đơn là nhóm tới', isWinMeld([c('TUONG', 'RED')]));
+
+console.log('== meldPoints (ẩn/lộ) ==');
+check('bộ lẻ XPM = 1 lệnh', meldPoints('XPM', 3, true) === 1 && meldPoints('XPM', 3, false) === 1);
+check('bộ lẻ CMD = 1 lệnh', meldPoints('CMD', 3, false) === 1);
+check('đôi = 0 lệnh', meldPoints('DOI', 2, false) === 0);
+check('Tướng (đơn/đôi) = 1 lệnh', meldPoints('TUONG_SET', 1, false) === 1 && meldPoints('TUONG_SET', 2, true) === 1);
+check('3 giống: ăn/lộ 1 / Khạp ẩn 3', meldPoints('KHAN', 3, true) === 1 && meldPoints('KHAN', 3, false) === 3);
+check('4 giống: khui 6 / quản 8', meldPoints('QUAN', 4, true) === 6 && meldPoints('QUAN', 4, false) === 8);
+check('3 Tốt = 1, 4 Tốt/Chốt = 4', meldPoints('TOT3', 3, false) === 1 && meldPoints('TOT4', 4, false) === 4);
+
+console.log('== describeMeld ==');
+check('đôi Tướng nhận diện TUONG_SET (1 lệnh)', describeMeld(same('TUONG', 'RED', 2), false)?.type === 'TUONG_SET');
+check('đôi thường nhận diện DOI (0 lệnh)', describeMeld(same('XE', 'RED', 2), false)?.type === 'DOI');
+check('XPM even=false (lẻ)', describeMeld([c('XE', 'RED'), c('PHAO', 'RED'), c('MA', 'RED')], true)?.even === false);
+check('Khạp even=true (chẵn)', describeMeld(same('SI', 'GREEN', 3), true)?.even === true);
+
+console.log('== analyzeHand (giá trị ẩn) ==');
+check('1 đôi hợp lệ (0 lệnh)', analyzeHand(same('XE', 'RED', 2)).valid && analyzeHand(same('XE', 'RED', 2)).totalPoints === 0);
+check('Tướng lẻ hợp lệ (1 lệnh)', analyzeHand([c('TUONG', 'RED')]).valid && analyzeHand([c('TUONG', 'RED')]).totalPoints === 1);
+check('Tốt lẻ KHÔNG hợp lệ', !analyzeHand([c('TOT', 'RED')]).valid);
+check('Sĩ lẻ KHÔNG hợp lệ', !analyzeHand([c('SI', 'RED')]).valid);
+check('Khạp 3 giống ẩn = 3 lệnh', analyzeHand(same('TOT', 'RED', 3)).totalPoints === 3);
+check('quản 4 giống ẩn = 8 lệnh', analyzeHand(same('PHAO', 'YELLOW', 4)).totalPoints === 8);
+check('4 Tốt/Chốt đủ màu = 4 lệnh', analyzeHand([c('TOT', 'RED'), c('TOT', 'GREEN'), c('TOT', 'YELLOW'), c('TOT', 'WHITE')]).totalPoints === 4);
+check('Tướng-Sĩ-Tượng = 1 lệnh', analyzeHand([c('TUONG', 'RED'), c('SI', 'RED'), c('TUONG_ELE', 'RED')]).totalPoints === 1);
+
+// Đôi Xe đỏ + Xe-Pháo-Mã xanh: đôi 0 + XPM 1 = 1
+const a1 = analyzeHand([...same('XE', 'RED', 2), c('XE', 'GREEN'), c('PHAO', 'GREEN'), c('MA', 'GREEN')]);
+check('đôi + XPM hợp lệ, tổng 1 lệnh', a1.valid && a1.totalPoints === 1);
+
+console.log('== analyzeHand chọn decomposition điểm cao ==');
+// 4 lá Xe đỏ: nên tính như quản (8) chứ không tách 2 đôi (0).
+check('4 lá giống chọn quản (8) > 2 đôi (0)', analyzeHand(same('XE', 'RED', 4)).totalPoints === 8);
+
+console.log('== violatesBaiBung ==');
+// Tay: 2 Xe đỏ + Pháo đỏ + Mã đỏ; ăn Xe đỏ thứ 3 bằng 2 Xe => phạm.
+const handBung = [...same('XE', 'RED', 2), c('PHAO', 'RED'), c('MA', 'RED')];
+check('ăn phá bộ lẻ = phạm bài bụng', violatesBaiBung(handBung, handBung.slice(0, 2)));
+// Tay có 3 Xe đỏ + Pháo + Mã: ăn bằng 2 lá vẫn còn 1 Xe -> không phạm.
+const handOk = [...same('XE', 'RED', 3), c('PHAO', 'RED'), c('MA', 'RED')];
+check('còn dư lá cùng loại = không phạm', !violatesBaiBung(handOk, handOk.slice(0, 2)));
+// Tốt không thuộc bộ lẻ 3-quân.
+const handTot = same('TOT', 'RED', 2);
+check('Tốt không dính bài bụng', !violatesBaiBung(handTot, handTot));
+
+console.log('== countTrash / luật giảm rác ==');
+const round = [c('XE', 'RED'), c('PHAO', 'RED'), c('MA', 'RED')];
+check('bài tròn có 0 rác', countTrash(round) === 0);
+check('thêm Sĩ rời thành đúng 1 rác', countTrash([...round, c('SI', 'GREEN')]) === 1);
+check('hai chân bộ lẻ là 2 rác', countTrash([c('XE', 'WHITE'), c('PHAO', 'WHITE')]) === 2);
+
+function gameWith(h0: Card[], h1: Card[]): InternalGame {
+  return {
+    phase: 'PLAYING',
+    players: [
+      { seat: 0, name: 'A', socketId: null, connected: true, hand: h0, exposedMelds: [], discardPile: [] },
+      { seat: 1, name: 'B', socketId: null, connected: true, hand: h1, exposedMelds: [], discardPile: [] },
+    ],
+    wall: [], turn: 1, turnStage: 'REACT_DISCARD', pending: null,
+    lastAction: null, winner: null, message: null, scoreResult: null, mustDiscard: null,
+  };
+}
+
+console.log('== engine luật lượt / ăn bài ==');
+{
+  const own = c('XE', 'RED');
+  const active = c('XE', 'RED');
+  const g = gameWith([], [own]);
+  g.pending = { card: active, from: 0, source: 'DISCARD' };
+  check('nhà kế được ăn lá tỳ thành đôi', !applyAction(g, 1, { type: 'EAT', cardIds: [own.id] }).error && g.players[1].exposedMelds[0]?.type === 'DOI');
+}
+{
+  const xe = c('XE', 'GREEN');
+  const phao = c('PHAO', 'GREEN');
+  const active = c('MA', 'GREEN');
+  const g = gameWith([], [xe, phao]);
+  g.pending = { card: active, from: 0, source: 'DISCARD' };
+  check('nhà kế được ăn bộ lẻ', !applyAction(g, 1, { type: 'EAT', cardIds: [xe.id, phao.id] }).error && g.players[1].exposedMelds[0]?.type === 'XPM');
+}
+{
+  const xe = c('XE', 'YELLOW');
+  const phao = c('PHAO', 'YELLOW');
+  const active = c('MA', 'YELLOW');
+  const g = gameWith([xe, phao], []);
+  g.turn = 0;
+  g.turnStage = 'REACT_DRAW';
+  g.pending = { card: active, from: 1, source: 'DRAW' };
+  check('ngoài lượt không được giành lá bốc bằng bộ lẻ thường', Boolean(applyAction(g, 0, { type: 'EAT', cardIds: [xe.id, phao.id] }).error));
+}
+{
+  const pair = same('XE', 'RED', 2);
+  const twoTrash = [c('TOT', 'GREEN'), c('TOT', 'WHITE')];
+  const active = c('XE', 'RED');
+  const g = gameWith([...pair, ...twoTrash], []);
+  g.turn = 0;
+  g.turnStage = 'REACT_DRAW';
+  g.pending = { card: active, from: 1, source: 'DRAW' };
+  check('đôi vẫn được giật dù tay chỉ còn hai rác bụng', !applyAction(g, 0, { type: 'EAT', cardIds: pair.map((x) => x.id) }).error);
+}
+{
+  const khap = same('PHAO', 'YELLOW', 3);
+  const active = c('PHAO', 'YELLOW');
+  const g = gameWith(khap, []);
+  g.turn = 0;
+  g.turnStage = 'REACT_DRAW';
+  g.pending = { card: active, from: 1, source: 'DRAW' };
+  check('Khạp thường không bị bắt buộc giật lá bốc', !applyAction(g, 0, { type: 'PASS' }).error);
+}
+{
+  const khap = same('SI', 'WHITE', 3);
+  const g = gameWith(khap, []);
+  g.turn = 0;
+  g.turnStage = 'DISCARD';
+  check('được phá Khạp không phải Tướng để đánh', !applyAction(g, 0, { type: 'DISCARD', cardId: khap[0].id }).error);
+}
+{
+  const trash = c('SI', 'GREEN');
+  const g = gameWith([c('XE', 'RED'), c('PHAO', 'RED'), c('MA', 'RED'), trash], []);
+  g.turn = 0;
+  g.turnStage = 'DISCARD';
+  check('đánh đúng lá rác được chấp nhận', !applyAction(g, 0, { type: 'DISCARD', cardId: trash.id }).error);
+}
+{
+  const pair = same('XE', 'RED', 2);
+  const phao = c('PHAO', 'RED');
+  const ma = c('MA', 'RED');
+  for (const chosen of [...pair, phao, ma]) {
+    const hand = [...pair, phao, ma].map((card) => ({ ...card }));
+    const g = gameWith(hand, []);
+    g.turn = 0;
+    g.turnStage = 'DISCARD';
+    check(`được tùy ý đánh ${chosen.rank} trong đôi/bộ lẻ`, !applyAction(g, 0, { type: 'DISCARD', cardId: chosen.id }).error);
+  }
+}
+{
+  const tuong = c('TUONG', 'RED');
+  const g = gameWith([tuong], []);
+  g.turn = 0;
+  g.turnStage = 'DISCARD';
+  check('không được đánh quân Tướng', Boolean(applyAction(g, 0, { type: 'DISCARD', cardId: tuong.id }).error));
+}
+{
+  const g = gameWith([], []);
+  g.turn = 0;
+  g.turnStage = 'DRAW';
+  g.wall = same('TOT', 'RED', 7);
+  applyAction(g, 0, { type: 'DRAW' });
+  check('nọc còn 7 lá thì ván hòa', g.phase === 'FINISHED' && g.winner === null);
+}
+{
+  const active = c('TUONG', 'RED');
+  const trash = c('SI', 'GREEN');
+  const g = gameWith([trash], []);
+  g.turn = 0;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('TOT', 'WHITE', 8)];
+  applyAction(g, 0, { type: 'DRAW' });
+  check('bốc Tướng không có Khạp đối diện: người bốc tự xử lý', g.turn === 0 && g.turnStage === 'REACT_DRAW_SELF');
+  check('Tướng vừa bốc không được bỏ', Boolean(applyAction(g, 0, { type: 'PASS' }).error));
+}
+{
+  const active = c('XE', 'YELLOW');
+  const pair = same('XE', 'YELLOW', 2);
+  const trash = c('SI', 'WHITE');
+  const g = gameWith([], [...pair, trash]);
+  g.turn = 0;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('TOT', 'WHITE', 8)];
+  applyAction(g, 0, { type: 'DRAW' });
+  check('đối diện có đôi được chuyển lượt và cả bàn nhận thông báo', g.turn === 1 && g.turnStage === 'REACT_DRAW' && Boolean(g.lastAction?.includes('có đôi')));
+  const steal = applyAction(g, 1, { type: 'EAT', cardIds: pair.map((x) => x.id) });
+  check('đánh đôi xuống tạo bộ ba rồi bắt buộc chuyển sang đánh', !steal.error && g.players[1].exposedMelds[0]?.type === 'KHAN' && g.turnStage === 'DISCARD' && g.mustDiscard === 1);
+  check('không được Tới trước khi đánh sau giật đôi', Boolean(applyAction(g, 1, { type: 'DECLARE_WIN' }).error));
+  const discard = applyAction(g, 1, { type: 'DISCARD', cardId: trash.id });
+  check('sau khi giật đôi phải đánh tiếp một lá', !discard.error && g.pending?.source === 'DISCARD' && g.mustDiscard === null);
+}
+{
+  const active = c('MA', 'GREEN');
+  const pair = same('MA', 'GREEN', 2);
+  const g = gameWith([], pair);
+  g.pending = { card: active, from: 0, source: 'DRAW' };
+  g.turn = 1;
+  g.turnStage = 'REACT_DRAW';
+  const pass = applyAction(g, 1, { type: 'PASS' });
+  check('người có đôi có thể nhường, quyền trả về người bốc', !pass.error && g.turn === 0 && g.turnStage === 'REACT_DRAW_SELF');
+}
+{
+  const active = c('MA', 'RED');
+  const xe = c('XE', 'RED');
+  const phao = c('PHAO', 'RED');
+  const g = gameWith([], [xe, phao]);
+  g.pending = { card: active, from: 0, source: 'DRAW' };
+  g.turn = 0;
+  g.turnStage = 'REACT_DRAW_SELF';
+  const drop = applyAction(g, 0, { type: 'PASS' });
+  check('người bốc bỏ thì lá bốc trở thành lá tỳ cho đối thủ', !drop.error && g.turn === 1 && g.turnStage === 'REACT_DISCARD' && g.pending?.source === 'DISCARD');
+  const eat = applyAction(g, 1, { type: 'EAT', cardIds: [xe.id, phao.id] });
+  check('đối thủ được ăn lá bốc đã bị bỏ bằng bộ hợp lệ', !eat.error && g.players[1].exposedMelds[0]?.type === 'XPM' && g.turnStage === 'DISCARD');
+}
+{
+  const active = c('SI', 'YELLOW');
+  const g = gameWith([], []);
+  g.pending = { card: active, from: 0, source: 'DRAW' };
+  g.turn = 0;
+  g.turnStage = 'REACT_DRAW_SELF';
+  applyAction(g, 0, { type: 'PASS' });
+  const pass = applyAction(g, 1, { type: 'PASS' });
+  check('đối thủ không ăn thì được chuyển sang bốc lá mới', !pass.error && g.turn === 1 && g.turnStage === 'DRAW' && !g.pending);
+}
+{
+  const active = c('TUONG', 'YELLOW');
+  const sameKing = c('TUONG', 'YELLOW');
+  const g = gameWith([sameKing], []);
+  g.pending = { card: active, from: 0, source: 'DRAW' };
+  g.turn = 0;
+  g.turnStage = 'REACT_DRAW_SELF';
+  check('không được ghép Tướng vừa bốc thành đôi Tướng', Boolean(applyAction(g, 0, { type: 'EAT', cardIds: [sameKing.id] }).error));
+}
+{
+  const active = c('TUONG', 'GREEN');
+  const trash = c('PHAO', 'WHITE');
+  const g = gameWith([trash], []);
+  g.pending = { card: active, from: 0, source: 'DRAW' };
+  g.turn = 0;
+  g.turnStage = 'REACT_DRAW_SELF';
+  const result = applyAction(g, 0, { type: 'EAT', cardIds: [] });
+  check('được hạ Tướng đơn rồi chuyển sang đánh rác', !result.error && g.turnStage === 'DISCARD' && g.players[0].exposedMelds[0]?.type === 'TUONG_SET');
+  const discard = applyAction(g, 0, { type: 'DISCARD', cardId: trash.id });
+  check('sau khi nhận Tướng phải đánh rác, Tướng vẫn là quân đã ăn', !discard.error && g.pending?.source === 'DISCARD' && g.players[0].exposedMelds[0]?.cardIds.includes(active.id));
+}
+{
+  const active = c('TUONG', 'WHITE');
+  const si = c('SI', 'WHITE');
+  const tuong = c('TUONG_ELE', 'WHITE');
+  const g = gameWith([si, tuong], []);
+  g.pending = { card: active, from: 0, source: 'DRAW' };
+  g.turn = 0;
+  g.turnStage = 'REACT_DRAW_SELF';
+  const result = applyAction(g, 0, { type: 'EAT', cardIds: [si.id, tuong.id] });
+  check('được ghép Tướng bốc với Sĩ–Tượng cùng màu', !result.error && g.players[0].exposedMelds[0]?.type === 'CMD');
+}
+{
+  const active = c('TUONG', 'RED');
+  const khap = same('TUONG', 'RED', 3);
+  const g = gameWith([], khap);
+  g.turn = 0;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('TOT', 'GREEN', 8)];
+  applyAction(g, 0, { type: 'DRAW' });
+  check('Khạp Tướng đối diện được quyền giật lá vừa bốc', g.turn === 1 && g.turnStage === 'REACT_DRAW');
+  const result = applyAction(g, 1, { type: 'EAT', cardIds: khap.map((x) => x.id) });
+  check('giật Khạp Tướng tạo thành Khui', !result.error && g.players[1].exposedMelds[0]?.type === 'QUAN');
+}
+{
+  const active = c('TUONG', 'GREEN');
+  const khap = same('TUONG', 'GREEN', 3);
+  const g = gameWith([], khap);
+  g.pending = { card: active, from: 0, source: 'DRAW' };
+  g.turn = 1;
+  g.turnStage = 'REACT_DRAW';
+  const result = applyAction(g, 1, { type: 'PASS' });
+  check('đối diện có thể không giật Khạp Tướng, quyền trả về người bốc', !result.error && g.turn === 0 && g.turnStage === 'REACT_DRAW_SELF');
+}
+{
+  const hidden = [c('XE', 'WHITE'), c('PHAO', 'WHITE'), c('MA', 'WHITE')];
+  const g = gameWith(hidden, []);
+  g.turn = 0;
+  g.turnStage = 'DISCARD';
+  applyAction(g, 0, { type: 'DECLARE_WIN' });
+  const score = g.scoreResult!.perPlayer[0];
+  check('tới thường không cộng thưởng: bộ lẻ = 1 lệnh', score.totalPoints === 1 && score.bonus === 0 && !score.doubled);
+}
+{
+  const khuiCards = same('XE', 'GREEN', 4);
+  const hidden = [c('TUONG', 'WHITE')];
+  const g = gameWith(hidden, []);
+  g.players[0].exposedMelds.push({ type: 'QUAN', cardIds: khuiCards.map((x) => x.id), even: true, points: 6 });
+  g.turn = 0;
+  g.turnStage = 'DISCARD';
+  applyAction(g, 0, { type: 'DECLARE_WIN' });
+  const score = g.scoreResult!.perPlayer[0];
+  check('Khui bật mức thắng ×2 nhưng không cộng/nhân lệnh', score.totalPoints === 7 && score.bonus === 0 && score.doubled);
+}
+
+console.log(`\nKẾT QUẢ: ${pass} pass, ${fail} fail`);
+if (fail > 0) process.exit(1);

@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/net.ts","./src/components/cardview.tsx","./src/components/gamescreen.tsx","./src/components/lobby.tsx","../shared/deck.ts","../shared/melds.ts","../shared/types.ts"],"version":"5.9.3"}
