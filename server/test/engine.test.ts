@@ -115,6 +115,18 @@ console.log('== engine luật lượt / ăn bài ==');
   check('nhà kế được ăn lá tỳ thành đôi', !applyAction(g, 1, { type: 'EAT', cardIds: [own.id] }).error && g.players[1].exposedMelds[0]?.type === 'DOI');
 }
 {
+  const xe = c('XE', 'GREEN');
+  const phao = c('PHAO', 'GREEN');
+  const ma = c('MA', 'GREEN');
+  const active = c('XE', 'GREEN');
+  const g = gameWith([], [xe, phao, ma]);
+  g.pending = { card: active, from: 0, source: 'DISCARD' };
+  g.turn = 1;
+  g.turnStage = 'REACT_DISCARD';
+  const eat = applyAction(g, 1, { type: 'EAT', cardIds: [xe.id] });
+  check('Xe xanh được ăn Xe xanh thành đôi dù đang nằm trong bộ Xe-Pháo-Mã', !eat.error && g.players[1].exposedMelds[0]?.type === 'DOI');
+}
+{
   const pair = same('SI', 'WHITE', 2);
   const hand = [...pair, c('TUONG', 'WHITE'), c('TUONG_ELE', 'WHITE')];
   const active = c('SI', 'WHITE');
