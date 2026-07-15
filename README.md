@@ -41,7 +41,7 @@ Giờ chỉ cần **1 URL**: `http://localhost:3001`.
 ### Deploy Vercel
 
 Dự án có sẵn `vercel.json` và Function Socket.IO tại `api/socket.ts`. Kết nối
-realtime dùng đường dẫn `/api/socket`; Vercel sẽ tự chạy `npm install` cho npm
+realtime dùng đường dẫn `/api/socket/socket.io`; Vercel sẽ tự chạy `npm install` cho npm
 workspaces rồi build frontend vào `server/public`.
 
 Trước khi deploy production, cần nối một Redis database với project:

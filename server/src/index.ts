@@ -22,9 +22,12 @@ const PORT = Number(process.env.PORT) || 3001;
 
 export const app = express();
 export const httpServer = createServer(app);
+// Vercel mounts api/socket.ts at /api/socket and passes the remaining
+// /socket.io path to Socket.IO. Locally there is no Function mount prefix.
+const socketPath = process.env.VERCEL ? '/socket.io' : '/api/socket/socket.io';
 export const io = new Server(httpServer, {
   cors: { origin: '*' }, // tunnel/cross-network: cho phép mọi origin
-  path: '/api/socket',
+  path: socketPath,
 });
 
 // Redis shares rooms and Socket.IO broadcasts between Vercel instances.
