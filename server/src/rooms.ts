@@ -93,13 +93,15 @@ export async function getRoom(roomId: string): Promise<Room | undefined> {
   const id = roomId.toUpperCase();
   if (!redis) return rooms.get(id);
   const value = await redis.get(roomKey(id));
-  return value ? (JSON.parse(value) as Room) : undefined;
+  // node-redis can expose RESP3 replies as `string | {}` in the TypeScript
+  // version used by Vercel. These keys are always written as strings here.
+  return typeof value === 'string' ? (JSON.parse(value) as Room) : undefined;
 }
 
 export async function findRoomBySocket(socketId: string): Promise<Room | undefined> {
   if (redis) {
     const roomId = await redis.get(socketKey(socketId));
-    return roomId ? getRoom(roomId) : undefined;
+    return typeof roomId === 'string' ? getRoom(roomId) : undefined;
   }
   for (const room of rooms.values()) {
     if (room.game.players.some((p) => p.socketId === socketId)) return room;
