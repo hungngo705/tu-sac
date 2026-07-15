@@ -60,15 +60,15 @@ export function registerGameSocket(io: Server, socket: Socket): void {
     }
   }
 
-  socket.on('createRoom', async (name: string, cb) => {
-    const { room, seat } = await createRoom(name, socket.id);
+  socket.on('createRoom', async (name: string, clientId: string, cb) => {
+    const { room, seat } = await createRoom(name, socket.id, clientId);
     await socket.join(room.id);
     cb({ roomId: room.id, seat });
     broadcast(room);
   });
 
-  socket.on('joinRoom', async (roomId: string, name: string, cb) => {
-    const result = await joinRoom(roomId, name, socket.id);
+  socket.on('joinRoom', async (roomId: string, name: string, clientId: string, cb) => {
+    const result = await joinRoom(roomId, name, socket.id, clientId);
     if (!result.ok) {
       cb(result);
       return;

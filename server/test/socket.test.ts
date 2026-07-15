@@ -33,7 +33,7 @@ async function main() {
   };
 
   const a: Socket = ioc(URL, { path: '/api/socket/socket.io' });
-  const b: Socket = ioc(URL, { path: '/api/socket/socket.io' });
+  let b: Socket = ioc(URL, { path: '/api/socket/socket.io' });
   let stateA: GameStateView | null = null;
   let stateB: GameStateView | null = null;
   a.on('state', (v) => (stateA = v));
@@ -43,14 +43,29 @@ async function main() {
   await new Promise<void>((res) => b.on('connect', () => res()));
 
   const { roomId } = await new Promise<{ roomId: string }>((res) =>
-    a.emit('createRoom', 'An', (r: { roomId: string }) => res(r))
+    a.emit('createRoom', 'An', 'client-a', (r: { roomId: string }) => res(r))
   );
   check('tạo phòng có mã 4 ký tự', roomId.length === 4);
 
   const joinRes = await new Promise<{ ok: boolean }>((res) =>
-    b.emit('joinRoom', roomId, 'Bình', (r: { ok: boolean }) => res(r))
+    b.emit('joinRoom', roomId, 'Bình', 'client-b', (r: { ok: boolean }) => res(r))
   );
   check('người 2 vào phòng được', joinRes.ok);
+
+  // Vercel đóng WebSocket khi Function đạt maxDuration. Client mới phải nhận
+  // lại đúng ghế bằng clientId dù socket.id đã thay đổi.
+  const oldSocketId = b.id;
+  b.close();
+  b = ioc(URL, { path: '/api/socket/socket.io' });
+  b.on('state', (v) => (stateB = v));
+  await new Promise<void>((res) => b.on('connect', () => res()));
+  const reconnectRes = await new Promise<{ ok: boolean; seat?: number }>((res) =>
+    b.emit('joinRoom', roomId, 'Bình', 'client-b', res)
+  );
+  check(
+    'mất WebSocket rồi nối lại vẫn nhận đúng ghế',
+    reconnectRes.ok && reconnectRes.seat === 1 && b.id !== oldSocketId
+  );
 
   a.emit('action', roomId, { type: 'START' });
   await wait(300);

@@ -6,6 +6,7 @@ import { describeMeld } from '../../shared/melds.js';
 export interface InternalPlayer {
   seat: Seat;
   name: string;
+  clientId?: string;
   socketId: string | null;
   connected: boolean;
   hand: Card[];

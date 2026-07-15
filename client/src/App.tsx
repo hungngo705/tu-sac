@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { GameStateView } from '@shared/types';
-import { createRoom, joinRoom, onServerError, onState, requestState } from './net';
+import { createRoom, joinRoom, onConnect, onServerError, onState, requestState } from './net';
 import { Lobby } from './components/Lobby';
 import { GameScreen } from './components/GameScreen';
 
@@ -17,9 +17,34 @@ export default function App() {
   // Hiển thị lý do khi server từ chối một nước đi thay vì để nút có vẻ bị hỏng.
   useEffect(() => onServerError(showToast), []);
 
-  // Reconnect: nếu đã có phòng, xin lại state khi socket nối lại.
+  // Vercel đóng WebSocket khi Function hết maxDuration. Socket mới phải nhận
+  // lại đúng ghế trước khi xin state; chỉ requestState thì server không nhận ra.
   useEffect(() => {
-    if (roomId) requestState(roomId);
+    if (!roomId) return;
+    requestState(roomId);
+    let cancelled = false;
+    const restoreSeat = async () => {
+      const name = localStorage.getItem('tusac_name') || 'Người chơi';
+      for (const delay of [0, 500, 1500]) {
+        if (cancelled) return;
+        if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+        try {
+          const result = await joinRoom(roomId, name);
+          if (result.ok) {
+            requestState(roomId);
+            return;
+          }
+        } catch {
+          // Socket/Redis có thể cần một nhịp để hoàn tất disconnect cũ.
+        }
+      }
+      if (!cancelled) showToast('Mất kết nối phòng, hãy tải lại trang');
+    };
+    const off = onConnect(restoreSeat);
+    return () => {
+      cancelled = true;
+      off();
+    };
   }, [roomId]);
 
   function showToast(msg: string) {

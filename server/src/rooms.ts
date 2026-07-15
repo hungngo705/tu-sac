@@ -33,13 +33,15 @@ async function rememberSocket(socketId: string, roomId: string): Promise<void> {
 
 export async function createRoom(
   hostName: string,
-  socketId: string
+  socketId: string,
+  clientId: string
 ): Promise<{ room: Room; seat: Seat }> {
   let id = genRoomId();
   while (await getRoom(id)) id = genRoomId();
   const host: InternalPlayer = {
     seat: 0,
     name: hostName || 'Người chơi 1',
+    clientId,
     socketId,
     connected: true,
     hand: [],
@@ -56,11 +58,23 @@ export async function createRoom(
 export async function joinRoom(
   roomId: string,
   name: string,
-  socketId: string
+  socketId: string,
+  clientId: string
 ): Promise<{ ok: boolean; seat?: Seat; error?: string }> {
   const room = await getRoom(roomId);
   if (!room) return { ok: false, error: 'Không tìm thấy phòng' };
   const g = room.game;
+  // Reconnect bằng định danh ổn định, không phụ thuộc socket.id vốn thay đổi
+  // mỗi khi Vercel đóng WebSocket ở giới hạn maxDuration.
+  const returning = g.players.find((player) => player.clientId === clientId);
+  if (returning) {
+    returning.socketId = socketId;
+    returning.connected = true;
+    if (name) returning.name = name;
+    await persistRoom(room);
+    await rememberSocket(socketId, room.id);
+    return { ok: true, seat: returning.seat };
+  }
   // Cho phép reconnect: nếu có ghế đang mất kết nối, chiếm lại.
   const disconnected = g.players.find((p) => !p.connected);
   if (g.players.length < 2) {
@@ -68,6 +82,7 @@ export async function joinRoom(
     g.players.push({
       seat,
       name: name || 'Người chơi 2',
+      clientId,
       socketId,
       connected: true,
       hand: [],
@@ -81,6 +96,7 @@ export async function joinRoom(
   if (disconnected) {
     disconnected.socketId = socketId;
     disconnected.connected = true;
+    disconnected.clientId = clientId;
     if (name) disconnected.name = name;
     await persistRoom(room);
     await rememberSocket(socketId, room.id);

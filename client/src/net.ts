@@ -1,6 +1,13 @@
 import { io, Socket } from 'socket.io-client';
 import { GameAction, GameStateView, Seat } from '@shared/types';
 
+const CLIENT_ID_KEY = 'tusac_client_id';
+let clientId = localStorage.getItem(CLIENT_ID_KEY);
+if (!clientId) {
+  clientId = crypto.randomUUID();
+  localStorage.setItem(CLIENT_ID_KEY, clientId);
+}
+
 // Cùng origin với server (đã phục vụ frontend). Dev thì Vite proxy lo.
 export const socket: Socket = io('/', {
   autoConnect: true,
@@ -32,7 +39,7 @@ function waitForConnection(): Promise<void> {
 
 export async function createRoom(name: string): Promise<{ roomId: string; seat: Seat }> {
   await waitForConnection();
-  return socket.timeout(10_000).emitWithAck('createRoom', name);
+  return socket.timeout(10_000).emitWithAck('createRoom', name, clientId);
 }
 
 export async function joinRoom(
@@ -40,7 +47,7 @@ export async function joinRoom(
   name: string
 ): Promise<{ ok: boolean; seat?: Seat; error?: string }> {
   await waitForConnection();
-  return socket.timeout(10_000).emitWithAck('joinRoom', roomId, name);
+  return socket.timeout(10_000).emitWithAck('joinRoom', roomId, name, clientId);
 }
 
 export function sendAction(roomId: string, action: GameAction): void {
@@ -59,4 +66,9 @@ export function onState(cb: (view: GameStateView) => void): () => void {
 export function onServerError(cb: (message: string) => void): () => void {
   socket.on('error', cb);
   return () => socket.off('error', cb);
+}
+
+export function onConnect(cb: () => void): () => void {
+  socket.on('connect', cb);
+  return () => socket.off('connect', cb);
 }
