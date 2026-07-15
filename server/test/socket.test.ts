@@ -45,7 +45,7 @@ async function main() {
   const { roomId } = await new Promise<{ roomId: string }>((res) =>
     a.emit('createRoom', 'An', 'client-a', (r: { roomId: string }) => res(r))
   );
-  check('tạo phòng có mã 4 ký tự', roomId.length === 4);
+  check('tạo phòng có mã đúng 2 chữ số', /^\d{2}$/.test(roomId));
 
   const joinRes = await new Promise<{ ok: boolean }>((res) =>
     b.emit('joinRoom', roomId, 'Bình', 'client-b', (r: { ok: boolean }) => res(r))

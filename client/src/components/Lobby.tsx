@@ -41,12 +41,14 @@ export function Lobby({ onCreate, onJoin }: Props) {
           <input
             placeholder="Nhập mã phòng"
             value={code}
-            maxLength={4}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            maxLength={2}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 2))}
           />
           <button
             className="btn"
-            disabled={code.length < 4}
+            disabled={code.length !== 2}
             onClick={() => onJoin(code, trimmedName)}
           >
             Vào phòng

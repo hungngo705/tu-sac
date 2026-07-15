@@ -1,10 +1,9 @@
-import { customAlphabet } from 'nanoid';
 import { GameStateView, PublicPlayer, Seat } from '../../shared/types.js';
 import { InternalGame, InternalPlayer, newGame } from './game.js';
 import { redis } from './redis.js';
 
-// Mã phòng 4 ký tự dễ đọc, dễ gõ trên điện thoại.
-const genRoomId = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 4);
+// Mã phòng gồm đúng 2 chữ số: 00..99.
+const ROOM_CODE_COUNT = 100;
 
 export interface Room {
   id: string;
@@ -25,6 +24,21 @@ async function persistRoom(room: Room): Promise<void> {
   rooms.set(room.id, room);
 }
 
+// Giữ mã mới theo kiểu atomic trên Redis để hai Vercel instance không thể
+// cùng cấp một mã phòng. Local Map cũng dùng cùng nguyên tắc.
+async function persistNewRoom(room: Room): Promise<boolean> {
+  if (redis) {
+    const result = await redis.set(roomKey(room.id), JSON.stringify(room), {
+      EX: ROOM_TTL_SECONDS,
+      NX: true,
+    });
+    return result === 'OK';
+  }
+  if (rooms.has(room.id)) return false;
+  rooms.set(room.id, room);
+  return true;
+}
+
 async function rememberSocket(socketId: string, roomId: string): Promise<void> {
   if (redis) {
     await redis.set(socketKey(socketId), roomId, { EX: ROOM_TTL_SECONDS });
@@ -36,8 +50,6 @@ export async function createRoom(
   socketId: string,
   clientId: string
 ): Promise<{ room: Room; seat: Seat }> {
-  let id = genRoomId();
-  while (await getRoom(id)) id = genRoomId();
   const host: InternalPlayer = {
     seat: 0,
     name: hostName || 'Người chơi 1',
@@ -49,10 +61,15 @@ export async function createRoom(
     discardPile: [],
   };
   const game = newGame([host]);
-  const room: Room = { id, game, createdAt: Date.now() };
-  await persistRoom(room);
-  await rememberSocket(socketId, id);
-  return { room, seat: 0 };
+  const start = Math.floor(Math.random() * ROOM_CODE_COUNT);
+  for (let offset = 0; offset < ROOM_CODE_COUNT; offset++) {
+    const id = String((start + offset) % ROOM_CODE_COUNT).padStart(2, '0');
+    const room: Room = { id, game, createdAt: Date.now() };
+    if (!(await persistNewRoom(room))) continue;
+    await rememberSocket(socketId, id);
+    return { room, seat: 0 };
+  }
+  throw new Error('Hiện không còn mã phòng trống. Hãy thử lại sau.');
 }
 
 export async function joinRoom(

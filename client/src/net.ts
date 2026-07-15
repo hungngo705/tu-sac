@@ -39,7 +39,15 @@ function waitForConnection(): Promise<void> {
 
 export async function createRoom(name: string): Promise<{ roomId: string; seat: Seat }> {
   await waitForConnection();
-  return socket.timeout(10_000).emitWithAck('createRoom', name, clientId);
+  const response = await socket.timeout(10_000).emitWithAck('createRoom', name, clientId) as {
+    roomId?: string;
+    seat?: Seat;
+    error?: string;
+  };
+  if (response.error || response.roomId == null || response.seat == null) {
+    throw new Error(response.error || 'Không tạo được phòng');
+  }
+  return { roomId: response.roomId, seat: response.seat };
 }
 
 export async function joinRoom(

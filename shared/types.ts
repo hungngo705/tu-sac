@@ -151,10 +151,15 @@ export interface ScoreResult {
 
 // ====== Giao thức Socket.IO ======
 export interface ClientToServer {
-  createRoom: (name: string, cb: (res: { roomId: string; seat: Seat }) => void) => void;
+  createRoom: (
+    name: string,
+    clientId: string,
+    cb: (res: { roomId?: string; seat?: Seat; error?: string }) => void
+  ) => void;
   joinRoom: (
     roomId: string,
     name: string,
+    clientId: string,
     cb: (res: { ok: boolean; seat?: Seat; error?: string }) => void
   ) => void;
   action: (roomId: string, action: GameAction) => void;

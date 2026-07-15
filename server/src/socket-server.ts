@@ -61,10 +61,16 @@ export function registerGameSocket(io: Server, socket: Socket): void {
   }
 
   socket.on('createRoom', async (name: string, clientId: string, cb) => {
-    const { room, seat } = await createRoom(name, socket.id, clientId);
-    await socket.join(room.id);
-    cb({ roomId: room.id, seat });
-    broadcast(room);
+    try {
+      const { room, seat } = await createRoom(name, socket.id, clientId);
+      await socket.join(room.id);
+      cb({ roomId: room.id, seat });
+      broadcast(room);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không tạo được phòng';
+      cb({ error: message });
+      socket.emit('error', message);
+    }
   });
 
   socket.on('joinRoom', async (roomId: string, name: string, clientId: string, cb) => {
