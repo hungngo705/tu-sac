@@ -163,10 +163,51 @@ body {
   color: var(--gold);
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--gold);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.room-label {
+  white-space: nowrap;
+}
+
 .topbar .invite-btn {
   width: auto;
   padding: 7px 12px;
   font-size: 15px;
+}
+
+@media (max-width: 520px) {
+  .topbar-left {
+    gap: 7px;
+  }
+
+  .home-btn {
+    padding-inline: 9px;
+  }
+
+  .home-btn span {
+    display: none;
+  }
 }
 
 .opponent,

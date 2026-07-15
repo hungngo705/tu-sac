@@ -86,12 +86,17 @@ export default function App() {
     }
   }
 
+  function handleHome() {
+    setRoomId(null);
+    setView(null);
+  }
+
   const inGame = roomId && view;
 
   return (
     <div className="app">
       {inGame ? (
-        <GameScreen view={view} roomId={roomId} onToast={showToast} />
+        <GameScreen view={view} roomId={roomId} onToast={showToast} onHome={handleHome} />
       ) : (
         <Lobby onCreate={handleCreate} onJoin={handleJoin} />
       )}

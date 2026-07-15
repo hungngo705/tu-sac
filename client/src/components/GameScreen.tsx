@@ -7,9 +7,10 @@ interface Props {
   view: GameStateView;
   roomId: string;
   onToast: (msg: string) => void;
+  onHome: () => void;
 }
 
-export function GameScreen({ view, roomId, onToast }: Props) {
+export function GameScreen({ view, roomId, onToast, onHome }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export function GameScreen({ view, roomId, onToast }: Props) {
   if (view.phase === 'WAITING') {
     return (
       <div className="game">
-        <TopBar view={view} onToast={onToast} />
+        <TopBar view={view} onToast={onToast} onHome={onHome} />
         <div className="center">
           <p style={{ fontSize: 18 }}>Mã phòng</p>
           <p style={{ fontSize: 44, letterSpacing: 6, color: 'var(--gold)', margin: 0 }}>
@@ -56,7 +57,7 @@ export function GameScreen({ view, roomId, onToast }: Props) {
 
   return (
     <div className="game">
-      <TopBar view={view} onToast={onToast} />
+      <TopBar view={view} onToast={onToast} onHome={onHome} />
 
       {/* Đối thủ */}
       <div className="opponent">
@@ -136,7 +137,15 @@ export function GameScreen({ view, roomId, onToast }: Props) {
   );
 }
 
-function TopBar({ view, onToast }: { view: GameStateView; onToast: (m: string) => void }) {
+function TopBar({
+  view,
+  onToast,
+  onHome,
+}: {
+  view: GameStateView;
+  onToast: (m: string) => void;
+  onHome: () => void;
+}) {
   async function copyLink() {
     const url = `${location.origin}?room=${view.roomId}`;
     try {
@@ -148,9 +157,14 @@ function TopBar({ view, onToast }: { view: GameStateView; onToast: (m: string) =
   }
   return (
     <div className="topbar">
-      <span>
-        Phòng <span className="room-code">{view.roomId}</span>
-      </span>
+      <div className="topbar-left">
+        <button className="home-btn" onClick={onHome} aria-label="Về trang chủ">
+          ← <span>Trang chủ</span>
+        </button>
+        <span className="room-label">
+          Phòng <span className="room-code">{view.roomId}</span>
+        </span>
+      </div>
       <button className="btn btn--ghost invite-btn" onClick={copyLink}>
         Phương đẹp gái
       </button>
