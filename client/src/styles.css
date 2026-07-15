@@ -42,7 +42,8 @@ body {
   display: flex;
   flex-direction: column;
   padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
+  /* Safe-area đáy đã được đặt trong hand-area; không cộng lần hai ở ngoài. */
+  padding-bottom: 0;
 }
 
 /* ====== Lobby ====== */
@@ -145,7 +146,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: calc(100dvh - var(--safe-top));
 }
 
 .topbar {
@@ -306,6 +307,7 @@ body {
 /* Bài trên tay: cuộn ngang nếu nhiều, wrap 2 hàng trên màn nhỏ */
 .hand-area {
   flex: 0 0 auto;
+  margin-top: auto;
   background: rgba(0, 0, 0, 0.3);
   padding: 10px 6px calc(10px + var(--safe-bottom));
   border-top: 2px solid var(--gold);
