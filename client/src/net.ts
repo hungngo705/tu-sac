@@ -4,8 +4,9 @@ import { GameAction, GameStateView, Seat } from '@shared/types';
 // Cùng origin với server (đã phục vụ frontend). Dev thì Vite proxy lo.
 export const socket: Socket = io('/', {
   autoConnect: true,
-  // api/socket.ts is the Vercel Function; Socket.IO adds its own /socket.io.
-  path: '/api/socket/socket.io',
+  // Vercel exposes the WebSocket server at the Function's exact route. Local
+  // Node has no Function mount, so it keeps a distinct Engine.IO path.
+  path: import.meta.env.DEV ? '/api/socket/socket.io' : '/api/socket',
   // A polling session can be routed to different Vercel Function instances.
   transports: ['websocket'],
   timeout: 12_000,
