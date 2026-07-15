@@ -257,11 +257,9 @@ function ActionBar({
           >
             Đánh lá này
           </button>
-          {!view.mustDiscard && (
-            <button className="btn btn--danger" onClick={() => onAct({ type: 'DECLARE_WIN' })}>
-              Tới!
-            </button>
-          )}
+          <button className="btn btn--danger" onClick={() => onAct({ type: 'DECLARE_WIN' })}>
+            Tới!
+          </button>
         </>
       )}
     </div>

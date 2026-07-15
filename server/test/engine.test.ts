@@ -101,7 +101,7 @@ function gameWith(h0: Card[], h1: Card[]): InternalGame {
       { seat: 0, name: 'A', socketId: null, connected: true, hand: h0, exposedMelds: [], discardPile: [] },
       { seat: 1, name: 'B', socketId: null, connected: true, hand: h1, exposedMelds: [], discardPile: [] },
     ],
-    wall: [], turn: 1, turnStage: 'REACT_DISCARD', pending: null,
+    wall: [], dealer: 0, turn: 1, turnStage: 'REACT_DISCARD', pending: null,
     lastAction: null, winner: null, message: null, scoreResult: null, mustDiscard: null,
   };
 }
@@ -275,9 +275,21 @@ console.log('== engine luật lượt / ăn bài ==');
   check('đối diện có đôi được chuyển lượt và cả bàn nhận thông báo', g.turn === 1 && g.turnStage === 'REACT_DRAW' && Boolean(g.lastAction?.includes('có đôi')));
   const steal = applyAction(g, 1, { type: 'EAT', cardIds: pair.map((x) => x.id) });
   check('đánh đôi xuống tạo bộ ba rồi bắt buộc chuyển sang đánh', !steal.error && g.players[1].exposedMelds[0]?.type === 'KHAN' && g.turnStage === 'DISCARD' && g.mustDiscard === 1);
-  check('không được Tới trước khi đánh sau giật đôi', Boolean(applyAction(g, 1, { type: 'DECLARE_WIN' }).error));
+  check('sau giật đôi, bài còn rác thì chưa được Tới', Boolean(applyAction(g, 1, { type: 'DECLARE_WIN' }).error));
   const discard = applyAction(g, 1, { type: 'DISCARD', cardId: trash.id });
   check('sau khi giật đôi phải đánh tiếp một lá', !discard.error && g.pending?.source === 'DISCARD' && g.mustDiscard === null);
+}
+{
+  const active = c('XE', 'GREEN');
+  const pair = same('XE', 'GREEN', 2);
+  const round = [c('XE', 'WHITE'), c('PHAO', 'WHITE'), c('MA', 'WHITE')];
+  const g = gameWith([], [...pair, ...round]);
+  g.pending = { card: active, from: 0, source: 'DRAW' };
+  g.turn = 1;
+  g.turnStage = 'REACT_DRAW';
+  const steal = applyAction(g, 1, { type: 'EAT', cardIds: pair.map((card) => card.id) });
+  const win = applyAction(g, 1, { type: 'DECLARE_WIN' });
+  check('giật đôi xong bài liền được Tới ngay, không phải đánh rác', !steal.error && !win.error && g.phase === 'FINISHED' && g.winner === 1);
 }
 {
   const active = c('MA', 'GREEN');
@@ -385,6 +397,19 @@ console.log('== engine luật lượt / ăn bài ==');
   applyAction(g, 0, { type: 'DECLARE_WIN' });
   const score = g.scoreResult!.perPlayer[0];
   check('Khui bật mức thắng ×2 nhưng không cộng/nhân lệnh', score.totalPoints === 7 && score.bonus === 0 && score.doubled);
+}
+{
+  const g = gameWith([], []);
+  g.phase = 'FINISHED';
+  g.winner = 1;
+  const rematch = applyAction(g, 0, { type: 'REMATCH' });
+  const owned = (seat: 0 | 1) =>
+    g.players[seat].hand.length +
+    g.players[seat].exposedMelds.reduce((total, meld) => total + meld.cardIds.length, 0);
+  check(
+    'người thắng làm cái ván sau: nhận 21 lá và đánh trước',
+    !rematch.error && g.dealer === 1 && g.turn === 1 && owned(1) === 21 && owned(0) === 20
+  );
 }
 
 console.log(`\nKẾT QUẢ: ${pass} pass, ${fail} fail`);

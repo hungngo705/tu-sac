@@ -132,7 +132,7 @@ export interface GameStateView {
   winner: Seat | null;
   scoreResult: ScoreResult | null;
   message: string | null;
-  mustDiscard: boolean; // chính người nhận view phải đánh 1 lá trước khi làm việc khác
+  mustDiscard: boolean; // sau khi giật đôi: phải đánh nếu bài chưa đủ điều kiện Tới
 }
 
 export interface ScoreResult {

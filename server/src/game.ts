@@ -18,6 +18,7 @@ export interface InternalGame {
   phase: 'WAITING' | 'PLAYING' | 'FINISHED';
   players: InternalPlayer[];
   wall: Card[];
+  dealer: Seat; // nhà cái hiện tại; người thắng sẽ làm cái ở ván kế tiếp
   turn: Seat;
   turnStage: TurnStage;
   pending: PendingCard | null;
@@ -25,7 +26,7 @@ export interface InternalGame {
   winner: Seat | null;
   message: string | null;
   scoreResult: ScoreResult | null;
-  mustDiscard: Seat | null; // bắt buộc đánh 1 lá sau khi giật đôi
+  mustDiscard: Seat | null; // sau khi giật đôi: phải đánh nếu bài chưa đủ điều kiện Tới
 }
 
 export function newGame(players: InternalPlayer[]): InternalGame {
@@ -33,6 +34,7 @@ export function newGame(players: InternalPlayer[]): InternalGame {
     phase: 'WAITING',
     players,
     wall: [],
+    dealer: 0,
     turn: 0,
     turnStage: 'DISCARD',
     pending: null,
@@ -44,12 +46,16 @@ export function newGame(players: InternalPlayer[]): InternalGame {
   };
 }
 
-// Bắt đầu/khởi tạo lại ván: xáo bài, chia, người ghế 0 làm cái đi trước.
+// Bắt đầu/khởi tạo lại ván: ván đầu ghế 0 làm cái; các ván sau người thắng làm cái.
 export function startRound(game: InternalGame): void {
+  // `?? 0` giúp các phòng cũ được lưu trước khi có trường dealer vẫn nâng cấp an toàn.
+  const dealer = game.winner ?? game.dealer ?? 0;
+  const otherSeat = (dealer === 0 ? 1 : 0) as Seat;
+  game.dealer = dealer;
   const deck = shuffle(createDeck());
   const d = deal(deck);
-  game.players[0].hand = d.hands[0];
-  game.players[1].hand = d.hands[1];
+  game.players[dealer].hand = d.hands[0];
+  game.players[otherSeat].hand = d.hands[1];
   game.players.forEach((p) => {
     p.exposedMelds = [];
     p.discardPile = [];
@@ -69,13 +75,13 @@ export function startRound(game: InternalGame): void {
     }
   });
   game.wall = d.wall;
-  game.turn = 0; // cái có 21 lá => vào thẳng bước đánh
+  game.turn = dealer; // cái có 21 lá => vào thẳng bước đánh
   game.turnStage = 'DISCARD';
   game.pending = null;
   game.winner = null;
   game.message = null;
   game.scoreResult = null;
   game.mustDiscard = null;
-  game.lastAction = 'Ván mới bắt đầu. Nhà cái đánh trước.';
+  game.lastAction = `Ván mới bắt đầu. ${game.players[dealer].name} làm cái và đánh trước.`;
   game.phase = 'PLAYING';
 }

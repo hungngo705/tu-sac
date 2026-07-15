@@ -261,9 +261,6 @@ function doPass(game: InternalGame, seat: Seat): ActionResult {
 function doDeclareWin(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult {
   if (game.phase !== 'PLAYING') return { error: 'Chưa vào ván' };
   if (game.turn !== seat) return { error: 'Chỉ được xin tới trong lượt của bạn' };
-  if (game.mustDiscard === seat) {
-    return { error: 'Sau khi giật đôi, bạn phải đánh xuống một lá trước khi được Tới' };
-  }
   const p = game.players[seat];
   const pending = game.pending;
 
