@@ -19,15 +19,19 @@ export function attachGameSocketServer(httpServer: HttpServer, path: string): Se
     path,
   });
 
-  // Catch initialization failures immediately so a bad Redis connection does
-  // not become an unhandled rejection that crashes the Vercel invocation.
-  const redisReady = configureRedis(io).then(
-    () => null,
-    (error: unknown) => error
-  );
+  // Do not open an outbound Redis connection while Vercel is still importing
+  // the HTTP server export. Initialize it on the first Socket.IO connection.
+  let redisReady: Promise<unknown | null> | null = null;
+  const ensureRedis = () => {
+    redisReady ??= configureRedis(io).then(
+      () => null,
+      (error: unknown) => error
+    );
+    return redisReady;
+  };
 
   io.use(async (_socket, next) => {
-    const error = await redisReady;
+    const error = await ensureRedis();
     if (error) {
       console.error('Redis initialization failed:', error);
       next(new Error('Không kết nối được kho dữ liệu phòng'));
