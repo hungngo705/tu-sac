@@ -4,10 +4,13 @@ import { attachGameSocketServer } from '../server/src/socket-server';
 // Vercel detects the WebSocket server from this entrypoint's direct
 // createServer() + default export. Moving creation into another module makes
 // it treat this file like a regular request handler instead.
-const httpServer = createServer();
-// The Function itself is mounted at /api/socket. Using the Engine.IO root path
-// avoids relying on Vercel forwarding a nested /socket.io route (which returns
-// NOT_FOUND with a static outputDirectory project).
-attachGameSocketServer(httpServer, '/');
+const httpServer = createServer((request, response) => {
+  // Safe diagnostic fallback: if Engine.IO does not claim the request, expose
+  // the URL Vercel passed to this server so routing can be verified remotely.
+  response.statusCode = 404;
+  response.setHeader('content-type', 'application/json');
+  response.end(JSON.stringify({ ok: false, path: request.url }));
+});
+attachGameSocketServer(httpServer, '/api/socket');
 
 export default httpServer;
