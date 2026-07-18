@@ -92,12 +92,14 @@ async function main() {
   a.emit('action', roomId, { type: 'DISCARD', cardId: firstCard.id });
   await wait(300);
   check('sau khi cái đánh: có pending (DISCARD)', stateB?.pending?.source === 'DISCARD');
+  check('lá vừa đánh được lưu lại để luôn hiển thị', stateB?.lastRevealed?.card.id === firstCard.id);
   check('lượt sang ghế 1, stage REACT_DISCARD', stateB?.turn === 1 && stateB?.turnStage === 'REACT_DISCARD');
 
   // Ghế 1 bỏ qua -> phải bốc bài
   b.emit('action', roomId, { type: 'PASS' });
   await wait(300);
   check('sau PASS: hết pending, ghế 1 stage DRAW', stateB?.turnStage === 'DRAW' && !stateB?.pending);
+  check('xử lý xong vẫn giữ lá vừa đánh trên bàn', stateB?.lastRevealed?.card.id === firstCard.id);
 
   // Ghế 1 bốc: lá lật ngửa nhưng chỉ chính người bốc được xử lý.
   b.emit('action', roomId, { type: 'DRAW' });

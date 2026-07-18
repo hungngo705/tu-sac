@@ -197,6 +197,7 @@ export function buildView(room: Room, forSeat: Seat | null): GameStateView {
     wallCount: g.wall.length,
     turn: g.turn,
     pending: g.pending,
+    lastRevealed: g.lastRevealed ?? g.pending ?? null,
     turnStage: g.turnStage,
     lastAction: g.lastAction,
     winner: g.winner,

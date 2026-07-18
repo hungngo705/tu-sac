@@ -128,6 +128,7 @@ export interface GameStateView {
   wallCount: number; // số lá còn trong nọc
   turn: Seat; // đến lượt ai hành động
   pending: PendingCard | null; // lá đang chờ xử lý (đánh ra / bốc lật)
+  lastRevealed: PendingCard | null; // lá đánh/bốc gần nhất, vẫn giữ lại sau khi pending đã xử lý
   turnStage: TurnStage; // giai đoạn trong lượt
   lastAction: string | null;
   winner: Seat | null;

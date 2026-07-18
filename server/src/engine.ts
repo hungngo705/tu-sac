@@ -66,6 +66,7 @@ function doDraw(game: InternalGame, seat: Seat): ActionResult {
   }
   const card = game.wall.shift()!;
   game.pending = { card, from: seat, source: 'DRAW' };
+  game.lastRevealed = game.pending;
   const opponent = other(seat);
   const matchingOpponentCards = game.players[opponent].hand.filter((c) => sameFace(c, card));
 
@@ -125,6 +126,7 @@ function doDiscard(game: InternalGame, seat: Seat, cardId: string): ActionResult
   p.discardPile.push(card);
   game.mustDiscard = null;
   game.pending = { card, from: seat, source: 'DISCARD' };
+  game.lastRevealed = game.pending;
   game.turn = other(seat);
   game.turnStage = 'REACT_DISCARD';
   game.lastAction = `${p.name} đánh ${cardLabel(card)}.`;
@@ -275,6 +277,7 @@ function doPass(game: InternalGame, seat: Seat): ActionResult {
   game.players[pending.from].discardPile.push(pending.card);
   const next = other(pending.from);
   game.pending = { card: pending.card, from: pending.from, source: 'DISCARD' };
+  game.lastRevealed = game.pending;
   game.turn = next;
   game.turnStage = 'REACT_DISCARD';
   game.lastAction = `${game.players[pending.from].name} bỏ lá bốc ${cardLabel(pending.card)}.`;

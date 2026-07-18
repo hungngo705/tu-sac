@@ -278,6 +278,17 @@ body {
   font-size: 15px;
   opacity: 0.8;
 }
+.pending-placeholder {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 72px;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  text-align: center;
+}
 
 .discard-piles {
   width: 100%;
@@ -352,6 +363,41 @@ body {
   background: rgba(0, 0, 0, 0.3);
   padding: 10px 6px calc(10px + var(--safe-bottom));
   border-top: 2px solid var(--gold);
+}
+.hand-area--active {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.18), rgba(0, 0, 0, 0.32) 70px);
+  box-shadow: inset 0 4px 0 rgba(255, 219, 94, 0.95), 0 -8px 28px rgba(212, 175, 55, 0.22);
+}
+.your-turn-banner {
+  width: fit-content;
+  margin: -2px auto 8px;
+  padding: 5px 18px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #2c2100;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+  animation: turn-pulse 1.4s ease-in-out infinite;
+}
+.turn-tag--mine {
+  font-size: 14px !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.3);
+}
+
+@keyframes turn-pulse {
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .your-turn-banner {
+    animation: none;
+  }
 }
 .hand {
   display: flex;

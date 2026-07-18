@@ -22,6 +22,7 @@ export interface InternalGame {
   turn: Seat;
   turnStage: TurnStage;
   pending: PendingCard | null;
+  lastRevealed?: PendingCard | null;
   lastAction: string | null;
   winner: Seat | null;
   message: string | null;
@@ -38,6 +39,7 @@ export function newGame(players: InternalPlayer[]): InternalGame {
     turn: 0,
     turnStage: 'DISCARD',
     pending: null,
+    lastRevealed: null,
     lastAction: null,
     winner: null,
     message: null,
@@ -78,6 +80,7 @@ export function startRound(game: InternalGame): void {
   game.turn = dealer; // cái có 21 lá => vào thẳng bước đánh
   game.turnStage = 'DISCARD';
   game.pending = null;
+  game.lastRevealed = null;
   game.winner = null;
   game.message = null;
   game.scoreResult = null;

@@ -20,6 +20,7 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
   const me = view.you;
   const opp = view.players.find((p) => p.seat !== me);
   const myTurn = view.turn === me;
+  const latestCard = view.pending ?? view.lastRevealed;
 
   function toggle(id: string) {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -79,20 +80,30 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
           {view.lastAction && <span style={{ opacity: 0.7 }}>{view.lastAction}</span>}
         </div>
 
-        {view.pending && (
-          <div className="pending">
-            <span className="label">
-              {view.pending.source === 'DRAW' ? 'Lá vừa bốc lật' : 'Lá vừa đánh'} (chờ xử lý)
-            </span>
-            <CardView card={view.pending.card} disabled />
-          </div>
-        )}
+        <div className={`pending ${latestCard ? '' : 'pending--empty'}`}>
+          <span className="label">
+            {latestCard
+              ? latestCard.source === 'DRAW'
+                ? 'Lá vừa bốc lật'
+                : 'Lá vừa đánh'
+              : 'Lá vừa đánh / bốc lật'}
+            {view.pending && ' (chờ xử lý)'}
+          </span>
+          {latestCard ? (
+            <CardView card={latestCard.card} disabled />
+          ) : (
+            <span className="pending-placeholder">Chưa có lá</span>
+          )}
+        </div>
 
         <DiscardPiles view={view} />
       </div>
 
       {/* Bài của tôi */}
-      <div className="hand-area">
+      <div className={`hand-area ${myTurn ? 'hand-area--active' : ''}`}>
+        {myTurn && view.phase === 'PLAYING' && (
+          <div className="your-turn-banner">TỚI LƯỢT BẠN</div>
+        )}
         <div className="player-bar">
           <span className={`dot`} />
           <span className="name">{view.players.find((p) => p.seat === me)?.name} (bạn)</span>
@@ -102,7 +113,7 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
           {(view.players.find((p) => p.seat === me)?.khapCount ?? 0) > 0 && (
             <span className="turn-tag">{view.players.find((p) => p.seat === me)!.khapCount} Khạp</span>
           )}
-          {myTurn && view.phase === 'PLAYING' && <span className="turn-tag">Lượt bạn</span>}
+          {myTurn && view.phase === 'PLAYING' && <span className="turn-tag turn-tag--mine">Lượt bạn</span>}
         </div>
         {(() => {
           const mine = view.players.find((p) => p.seat === me);
