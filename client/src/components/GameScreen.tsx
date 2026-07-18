@@ -101,9 +101,6 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
 
       {/* Bài của tôi */}
       <div className={`hand-area ${myTurn ? 'hand-area--active' : ''}`}>
-        {myTurn && view.phase === 'PLAYING' && (
-          <div className="your-turn-banner">TỚI LƯỢT BẠN</div>
-        )}
         <div className="player-bar">
           <span className={`dot`} />
           <span className="name">{view.players.find((p) => p.seat === me)?.name} (bạn)</span>
