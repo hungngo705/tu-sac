@@ -138,9 +138,8 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
   if (game.phase !== 'PLAYING') return { error: 'Chưa vào ván' };
   if (!game.pending) return { error: 'Không có lá để ăn' };
   if (game.turn !== seat) return { error: 'Chưa tới lượt bạn' };
-  if (game.turnStage === 'REACT_DRAW_WIN_SELF' || game.turnStage === 'REACT_DRAW_WIN_OTHER') {
-    return { error: 'Đang xét Tới; hãy chọn Tới hoặc Không tới' };
-  }
+  const checkingWin =
+    game.turnStage === 'REACT_DRAW_WIN_SELF' || game.turnStage === 'REACT_DRAW_WIN_OTHER';
 
   const pending = game.pending;
   const eaterIsDrawer = pending.source === 'DRAW' && pending.from === seat;
@@ -152,6 +151,46 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
   if (handCards.length !== cardIds.length) return { error: 'Chọn lá không hợp lệ' };
 
   const meldCards = [...handCards, pending.card];
+  const winningMeld = isWinMeld(meldCards) ? describeMeld(meldCards, true) : null;
+  const remainingAfterWinEat = p.hand.filter(
+    (card) => !handCards.some((selected) => selected.id === card.id)
+  );
+  const invalidDrawnKingPair =
+    eaterIsDrawer &&
+    pending.card.rank === 'TUONG' &&
+    handCards.length === 1 &&
+    sameFace(handCards[0], pending.card);
+
+  // Khi lá đang chờ làm tròn bài, người chơi phải Ăn lá đó trước. Server hạ nhóm
+  // cuối và chuyển sang READY_TO_WIN; chỉ sau đó lệnh Tới mới được chấp nhận.
+  if (winningMeld && analyzeHand(remainingAfterWinEat).valid && !invalidDrawnKingPair) {
+    const locked = handCards.filter((card) => isLockedKhapCard(p.hand, card));
+    const opensThatKhap =
+      locked.length === 3 &&
+      handCards.length === 3 &&
+      winningMeld.type === 'QUAN' &&
+      sameFace(handCards[0], pending.card);
+    if (locked.length > 0 && !opensThatKhap) {
+      return { error: 'Không được phá Khạp để tới' };
+    }
+
+    for (const card of handCards) {
+      p.hand.splice(p.hand.findIndex((candidate) => candidate.id === card.id), 1);
+    }
+    removeClaimedDiscard(game, pending);
+    p.exposedMelds.push(winningMeld);
+    game.pending = null;
+    game.turn = seat;
+    game.turnStage = 'READY_TO_WIN';
+    game.mustDiscard = null;
+    game.lastAction = `${p.name} ăn ${cardLabel(pending.card)} và đã tròn bài — hãy bấm Tới.`;
+    return {};
+  }
+
+  if (checkingWin) {
+    return { error: 'Hãy chọn đúng các lá ghép với lá đang chờ rồi bấm Ăn trước khi Tới' };
+  }
+
   const loweringDrawnKing =
     eaterIsDrawer && pending.card.rank === 'TUONG' && handCards.length === 0;
   if (loweringDrawnKing) {
@@ -291,50 +330,16 @@ function doDeclareWin(game: InternalGame, seat: Seat, cardIds: string[]): Action
   const p = game.players[seat];
   const pending = game.pending;
 
-  // Trường hợp có lá đang chờ (ăn/bốc để tới): ghép nốt lá chờ thành 1 nhóm.
-  if (pending && game.turnStage !== 'DISCARD') {
-    const canClaim =
-      (pending.source === 'DISCARD' && pending.from !== seat) ||
-      (pending.source === 'DRAW');
-    if (!canClaim) return { error: 'Không thể tới bằng lá này' };
-
-    const handCards = cardIds
-      .map((id) => p.hand.find((c) => c.id === id))
-      .filter(Boolean) as Card[];
-    if (handCards.length !== cardIds.length) return { error: 'Chọn lá không hợp lệ' };
-
-    const finalMeld = [...handCards, pending.card];
-    if (!isWinMeld(finalMeld)) {
-      return { error: 'Lá chọn không ghép nốt được thành nhóm để tới' };
-    }
-    const md = describeMeld(finalMeld, true)!;
-    // Tới được ưu tiên cao nhất, nên bất kỳ nhà nào cũng được giành lá tỳ nếu lá đó làm tròn bài.
-
-    const locked = handCards.filter((c) => isLockedKhapCard(p.hand, c));
-    const opensThatKhap =
-      locked.length === 3 && handCards.length === 3 && md.type === 'QUAN' && sameFace(handCards[0], pending.card);
-    if (locked.length > 0 && !opensThatKhap) {
-      return { error: 'Không được phá Khạp để tới' };
-    }
-
-    // Phần còn lại trên tay phải chia hết thành nhóm hợp lệ.
-    const rest = p.hand.filter((c) => !handCards.some((h) => h.id === c.id));
-    const restAnalysis = analyzeHand(rest);
-    if (!restAnalysis.valid) {
-      return { error: 'Bài chưa tròn: phần còn lại vẫn có lá rác' };
-    }
-
-    // Chốt thắng: ghép finalMeld vào khu phơi.
-    for (const c of handCards) {
-      p.hand.splice(p.hand.findIndex((x) => x.id === c.id), 1);
-    }
-    removeClaimedDiscard(game, pending);
-    p.exposedMelds.push(md);
-    game.pending = null;
-    return finishWin(game, seat);
+  if (pending) {
+    return { error: 'Phải bấm Ăn lá đang chờ trước, sau đó mới được Tới' };
   }
 
-  // Trường hợp DISCARD (tới trên tay / sau khi ăn): toàn bộ bài phải tròn.
+  // READY_TO_WIN là bước xác nhận sau khi đã ăn lá cuối. DISCARD không có lá
+  // chờ vẫn hỗ trợ Thiên Hồ hoặc bài đã tự tròn trên tay.
+  if (game.turnStage !== 'READY_TO_WIN' && game.turnStage !== 'DISCARD') {
+    return { error: 'Chưa thể Tới; hãy Ăn lá làm tròn bài trước' };
+  }
+
   const handAnalysis = analyzeHand(p.hand);
   if (!handAnalysis.valid) {
     return { error: 'Bài chưa tới được (còn lá rác chưa vào nhóm)' };

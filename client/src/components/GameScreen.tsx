@@ -217,6 +217,7 @@ function ActionBar({
   const stage = view.turnStage;
   const reacting = stage === 'REACT_DISCARD' || stage === 'REACT_DRAW' || stage === 'REACT_DRAW_SELF';
   const checkingWin = stage === 'REACT_DRAW_WIN_SELF' || stage === 'REACT_DRAW_WIN_OTHER';
+  const readyToWin = stage === 'READY_TO_WIN';
   const isDrawSelf = stage === 'REACT_DRAW_SELF';
   const isDrawnKingSelf = isDrawSelf && view.pending?.card.rank === 'TUONG';
   const acceptedDrawnKing = stage === 'ACCEPTED_DRAWN_KING';
@@ -240,16 +241,20 @@ function ActionBar({
 
   const middleIsDiscard =
     stage === 'DISCARD' || (acceptedDrawnKing && selected.length <= 1);
-  const middleLabel = middleIsDiscard ? 'Đánh' : `Ăn (${selected.length})`;
+  const middleLabel = middleIsDiscard ? 'Đánh' : selected.length > 0 ? `Ăn (${selected.length})` : 'Ăn';
+  const canEatWinningKingAlone =
+    checkingWin && selected.length === 0 && view.pending?.card.rank === 'TUONG';
   const middleEnabled = middleIsDiscard
     ? myTurn && selected.length === 1
-    : myTurn && (reacting || acceptedDrawnKing) && selected.length > 0;
+    : myTurn &&
+      (reacting || checkingWin || acceptedDrawnKing) &&
+      (selected.length > 0 || canEatWinningKingAlone);
   const middleAction: Parameters<typeof sendAction>[1] | null = middleIsDiscard
     ? selected.length === 1
       ? { type: 'DISCARD', cardId: selected[0] }
       : null
     : { type: 'EAT', cardIds: selected };
-  const winEnabled = myTurn && stage !== 'DRAW';
+  const winEnabled = myTurn && (readyToWin || (stage === 'DISCARD' && !view.pending));
 
   return (
     <div className="actions">

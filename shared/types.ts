@@ -91,6 +91,7 @@ export type Seat = 0 | 1;
 //  REACT_DRAW_SELF - người bốc tự xử lý lá mình bốc (ăn / tới / bỏ = chết)
 //  REACT_DRAW_WIN_SELF  - người bốc Tướng được ưu tiên xét Tới
 //  REACT_DRAW_WIN_OTHER - đối thủ được xét Tới bằng quân Tướng vừa bốc
+//  READY_TO_WIN   - đã ăn lá cuối tạo bài tròn, chỉ còn được bấm Tới
 export type TurnStage =
   | 'DISCARD'
   | 'REACT_DISCARD'
@@ -99,7 +100,8 @@ export type TurnStage =
   | 'REACT_DRAW_SELF'
   | 'ACCEPTED_DRAWN_KING'
   | 'REACT_DRAW_WIN_SELF'
-  | 'REACT_DRAW_WIN_OTHER';
+  | 'REACT_DRAW_WIN_OTHER'
+  | 'READY_TO_WIN';
 
 // Nguồn của lá đang chờ: 'DISCARD' = do người khác đánh; 'DRAW' = vừa bốc lật.
 export interface PendingCard {
@@ -179,6 +181,6 @@ export type GameAction =
   | { type: 'DISCARD'; cardId: string } // đánh ra 1 lá
   | { type: 'EAT'; cardIds: string[] } // ăn lá đang chờ, dùng các lá trên tay
   | { type: 'PASS' } // bỏ qua không ăn (lá đánh -> bốc; lá tự bốc -> chết)
-  | { type: 'DECLARE_WIN'; cardIds?: string[] } // xin tới (cardIds: lá ghép nốt với lá chờ)
+  | { type: 'DECLARE_WIN'; cardIds?: string[] } // xin tới sau khi đã ăn lá chờ, hoặc khi bài tự tròn trên tay
   | { type: 'START' } // chủ phòng bắt đầu ván
   | { type: 'REMATCH' }; // chơi lại
