@@ -77,7 +77,11 @@ async function main() {
     (stateB?.players[1].exposedMelds.reduce((n, m) => n + m.cardIds.length, 0) ?? 0);
   check('cái có tổng 21 lá (kể cả Quàn đã lật)', totalA === 21);
   check('ghế 1 có tổng 20 lá (kể cả Quàn đã lật)', totalB === 20);
-  check('số bài công khai hiển thị đúng 21/20', stateA?.players[0].handCount === 21 && stateA?.players[1].handCount === 20);
+  check(
+    'số lá hiển thị là số còn trên tay, không cộng nhóm đã hạ',
+    stateA?.players[0].handCount === stateA?.yourHand.length &&
+      stateB?.players[1].handCount === stateB?.yourHand.length
+  );
   check('không gửi số Khạp của đối phương', stateA?.players[1].khapCount === 0 && stateB?.players[0].khapCount === 0);
   check('lượt đầu của cái, stage DISCARD', stateA?.turn === 0 && stateA?.turnStage === 'DISCARD');
 

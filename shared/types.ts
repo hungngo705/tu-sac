@@ -97,6 +97,7 @@ export type TurnStage =
   | 'DRAW'
   | 'REACT_DRAW'
   | 'REACT_DRAW_SELF'
+  | 'ACCEPTED_DRAWN_KING'
   | 'REACT_DRAW_WIN_SELF'
   | 'REACT_DRAW_WIN_OTHER';
 

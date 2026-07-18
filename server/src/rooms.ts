@@ -181,7 +181,7 @@ export function buildView(room: Room, forSeat: Seat | null): GameStateView {
     name: p.name,
     connected: p.connected,
     // Quàn đã lật vẫn thuộc tổng số bài được chia của người chơi.
-    handCount: p.hand.length + p.exposedMelds.reduce((n, m) => n + m.cardIds.length, 0),
+    handCount: p.hand.length,
     // Khạp là thông tin kín: chỉ gửi số Khạp cho chính chủ, không rò sang đối thủ.
     khapCount: p.seat === forSeat ? countKhap(p.hand) : 0,
     exposedMelds: p.exposedMelds,

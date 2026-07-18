@@ -202,80 +202,61 @@ function ActionBar({
   onAct: (a: Parameters<typeof sendAction>[1]) => void;
   onToast: (m: string) => void;
 }) {
-  if (view.phase !== 'PLAYING' || !myTurn) return null;
+  if (view.phase !== 'PLAYING') return null;
   const stage = view.turnStage;
   const reacting = stage === 'REACT_DISCARD' || stage === 'REACT_DRAW' || stage === 'REACT_DRAW_SELF';
   const checkingWin = stage === 'REACT_DRAW_WIN_SELF' || stage === 'REACT_DRAW_WIN_OTHER';
   const isDrawSelf = stage === 'REACT_DRAW_SELF';
   const isDrawnKingSelf = isDrawSelf && view.pending?.card.rank === 'TUONG';
+  const acceptedDrawnKing = stage === 'ACCEPTED_DRAWN_KING';
+
+  let primaryLabel = 'Bỏ qua';
+  let primaryAction: Parameters<typeof sendAction>[1] | null = null;
+  let primaryEnabled = false;
+
+  if (myTurn && stage === 'DRAW') {
+    primaryLabel = 'Bốc bài';
+    primaryAction = { type: 'DRAW' };
+    primaryEnabled = true;
+  } else if (myTurn && (stage === 'DISCARD' || acceptedDrawnKing)) {
+    primaryLabel = 'Đánh lá này';
+    primaryAction = selected.length === 1 ? { type: 'DISCARD', cardId: selected[0] } : null;
+    primaryEnabled = selected.length === 1;
+  } else if (myTurn && reacting) {
+    primaryLabel = isDrawnKingSelf ? 'Nhận Tướng' : isDrawSelf ? 'Bỏ lá bốc' : 'Bỏ qua';
+    primaryAction = isDrawnKingSelf ? { type: 'EAT', cardIds: [] } : { type: 'PASS' };
+    primaryEnabled = true;
+  } else if (myTurn && checkingWin) {
+    primaryAction = { type: 'PASS' };
+    primaryEnabled = true;
+  }
+
+  const eatEnabled = myTurn && (reacting || acceptedDrawnKing) && selected.length > 0;
+  const winEnabled = myTurn && stage !== 'DRAW';
 
   return (
     <div className="actions">
-      {checkingWin && (
-        <>
-          <button
-            className="btn btn--danger"
-            onClick={() => onAct({ type: 'DECLARE_WIN', cardIds: selected })}
-          >
-            Tới!
-          </button>
-          <button className="btn btn--ghost" onClick={() => onAct({ type: 'PASS' })}>
-            Không tới
-          </button>
-        </>
-      )}
-
-      {/* Phản ứng với lá đang chờ: ăn / bỏ qua (hoặc bỏ = chết nếu tự bốc) */}
-      {reacting && (
-        <>
-          {!isDrawnKingSelf && (
-            <button className="btn btn--ghost" onClick={() => onAct({ type: 'PASS' })}>
-              {isDrawSelf ? 'Bỏ lá bốc' : 'Bỏ qua'}
-            </button>
-          )}
-          <button
-            className="btn btn--eat"
-            disabled={selected.length === 0}
-            onClick={() => onAct({ type: 'EAT', cardIds: selected })}
-          >
-            Ăn ({selected.length})
-          </button>
-          {isDrawnKingSelf && (
-            <button className="btn" onClick={() => onAct({ type: 'EAT', cardIds: [] })}>
-              Nhận Tướng
-            </button>
-          )}
-          <button
-            className="btn btn--danger"
-            onClick={() => onAct({ type: 'DECLARE_WIN', cardIds: selected })}
-          >
-            Tới!
-          </button>
-        </>
-      )}
-
-      {/* Lượt của mình: bốc từ nọc */}
-      {stage === 'DRAW' && (
-        <button className="btn" onClick={() => onAct({ type: 'DRAW' })}>
-          Bốc bài
-        </button>
-      )}
-
-      {/* Lượt của mình: đánh 1 lá + xin tới trên tay */}
-      {stage === 'DISCARD' && (
-        <>
-          <button
-            className="btn"
-            disabled={selected.length !== 1}
-            onClick={() => onAct({ type: 'DISCARD', cardId: selected[0] })}
-          >
-            Đánh lá này
-          </button>
-          <button className="btn btn--danger" onClick={() => onAct({ type: 'DECLARE_WIN' })}>
-            Tới!
-          </button>
-        </>
-      )}
+      <button
+        className="btn btn--ghost"
+        disabled={!primaryEnabled}
+        onClick={() => primaryAction && onAct(primaryAction)}
+      >
+        {primaryLabel}
+      </button>
+      <button
+        className="btn btn--eat"
+        disabled={!eatEnabled}
+        onClick={() => onAct({ type: 'EAT', cardIds: selected })}
+      >
+        Ăn ({selected.length})
+      </button>
+      <button
+        className="btn btn--danger"
+        disabled={!winEnabled}
+        onClick={() => onAct({ type: 'DECLARE_WIN', cardIds: selected })}
+      >
+        Tới!
+      </button>
     </div>
   );
 }

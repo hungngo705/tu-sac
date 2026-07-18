@@ -86,12 +86,12 @@ function doDraw(game: InternalGame, seat: Seat): ActionResult {
     return {};
   }
 
-  const opponentHasMatchingPair = matchingOpponentCards.length === 2;
-  const opponentMaySteal = opponentHasMatchingPair;
+  const opponentMaySteal = canStealDrawnCard(game.players[opponent], card);
   game.turn = opponentMaySteal ? opponent : seat;
   game.turnStage = opponentMaySteal ? 'REACT_DRAW' : 'REACT_DRAW_SELF';
-  if (opponentHasMatchingPair) {
-    game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}. ${game.players[opponent].name} có đôi — được quyền giật.`;
+  if (opponentMaySteal) {
+    const takeName = matchingOpponentCards.length === 3 ? 'Khạp để Khui' : 'đôi';
+    game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}. ${game.players[opponent].name} có ${takeName} — được quyền giật.`;
   } else {
     game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}.`;
   }
@@ -102,7 +102,8 @@ function doDraw(game: InternalGame, seat: Seat): ActionResult {
 function doDiscard(game: InternalGame, seat: Seat, cardId: string): ActionResult {
   if (game.phase !== 'PLAYING') return { error: 'Chưa vào ván' };
   if (game.turn !== seat) return { error: 'Chưa tới lượt bạn' };
-  if (game.turnStage !== 'DISCARD') return { error: 'Chưa thể đánh lúc này' };
+  const acceptedDrawnKing = game.turnStage === 'ACCEPTED_DRAWN_KING';
+  if (game.turnStage !== 'DISCARD' && !acceptedDrawnKing) return { error: 'Chưa thể đánh lúc này' };
   const p = game.players[seat];
   const idx = p.hand.findIndex((c) => c.id === cardId);
   if (idx === -1) return { error: 'Không có lá này trên tay' };
@@ -110,6 +111,11 @@ function doDiscard(game: InternalGame, seat: Seat, cardId: string): ActionResult
   // Ngoại lệ duy nhất: Tướng không bao giờ được đánh ra.
   if (p.hand[idx].rank === 'TUONG') {
     return { error: 'Không được đánh quân Tướng' };
+  }
+  if (acceptedDrawnKing) {
+    const accepted = game.pending!;
+    p.exposedMelds.push(describeMeld([accepted.card], true)!);
+    game.pending = null;
   }
   const [card] = p.hand.splice(idx, 1);
   p.discardPile.push(card);
@@ -142,6 +148,14 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
   const meldCards = [...handCards, pending.card];
   const loweringDrawnKing =
     eaterIsDrawer && pending.card.rank === 'TUONG' && handCards.length === 0;
+  if (loweringDrawnKing) {
+    if (game.turnStage === 'ACCEPTED_DRAWN_KING') {
+      return { error: 'Đã nhận Tướng; hãy chọn Sĩ–Tượng để Ăn hoặc chọn một lá rác để đánh' };
+    }
+    game.turnStage = 'ACCEPTED_DRAWN_KING';
+    game.lastAction = `${p.name} nhận ${cardLabel(pending.card)}; có thể ghép Sĩ–Tượng hoặc đánh một lá rác.`;
+    return {};
+  }
   if (!loweringDrawnKing && !isEatableMeld(meldCards)) {
     return { error: 'Các lá này không tạo thành nhóm hợp lệ để ăn' };
   }
@@ -165,6 +179,9 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
     handCards.length <= 3 &&
     handCards.every((c) => sameFace(c, pending.card));
   const stealingWithPair = takingAnotherPlayersDraw && handCards.length === 2 && takingMatchingCards;
+  if (stealingWithPair && violatesBaiBung(p.hand, handCards)) {
+    return { error: 'Không được giật đôi vì sẽ phá bộ lẻ đang chờ trên tay' };
+  }
 
   const locked = handCards.filter((c) => isLockedKhapCard(p.hand, c));
   const opensThatKhap =
@@ -192,6 +209,7 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
   for (const c of handCards) {
     p.hand.splice(p.hand.findIndex((x) => x.id === c.id), 1);
   }
+  removeClaimedDiscard(game, pending);
   p.exposedMelds.push(md);
   game.pending = null;
   // Ăn xong phải đánh ra 1 lá.
@@ -303,6 +321,7 @@ function doDeclareWin(game: InternalGame, seat: Seat, cardIds: string[]): Action
     for (const c of handCards) {
       p.hand.splice(p.hand.findIndex((x) => x.id === c.id), 1);
     }
+    removeClaimedDiscard(game, pending);
     p.exposedMelds.push(md);
     game.pending = null;
     return finishWin(game, seat);
@@ -368,6 +387,23 @@ function buildScore(game: InternalGame, winner: Seat): ScoreResult {
 
 function sameFace(a: Card, b: Card): boolean {
   return a.rank === b.rank && a.color === b.color;
+}
+
+function canStealDrawnCard(player: InternalPlayer, active: Card): boolean {
+  const matching = player.hand.filter((card) => sameFace(card, active));
+  if (matching.length === 3) return true;
+  if (matching.length !== 2) return false;
+  return !violatesBaiBung(player.hand, matching);
+}
+
+function removeClaimedDiscard(game: InternalGame, pending: NonNullable<InternalGame['pending']>): void {
+  if (pending.source !== 'DISCARD') return;
+  const pile = game.players[pending.from].discardPile;
+  for (let index = pile.length - 1; index >= 0; index--) {
+    if (pile[index].id !== pending.card.id) continue;
+    pile.splice(index, 1);
+    break;
+  }
 }
 
 function returnDrawnKingToDrawer(game: InternalGame): void {
