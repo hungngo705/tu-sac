@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GameStateView } from '@shared/types';
 import { sendAction } from '../net';
 import { CardView } from './CardView';
@@ -12,8 +12,6 @@ interface Props {
 
 export function GameScreen({ view, roomId, onToast, onHome }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
-  const tableAreaRef = useRef<HTMLDivElement>(null);
-  const handRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSelected([]);
@@ -23,26 +21,6 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
   const opp = view.players.find((p) => p.seat !== me);
   const myTurn = view.turn === me;
   const latestCard = view.pending ?? view.lastRevealed;
-
-  useLayoutEffect(() => {
-    const scrollToBottom = () => {
-      if (tableAreaRef.current) {
-        tableAreaRef.current.scrollTop = tableAreaRef.current.scrollHeight;
-      }
-      if (handRef.current) {
-        handRef.current.scrollTop = handRef.current.scrollHeight;
-      }
-      window.scrollTo(0, document.documentElement.scrollHeight);
-    };
-
-    scrollToBottom();
-    const frame = window.requestAnimationFrame(scrollToBottom);
-    const timer = window.setTimeout(scrollToBottom, 100);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
-    };
-  }, [view]);
 
   function toggle(id: string) {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -82,7 +60,7 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
     <div className="game">
       <TopBar view={view} onToast={onToast} onHome={onHome} />
 
-      <div className="table-area" ref={tableAreaRef}>
+      <div className="table-area">
         {/* Đối thủ */}
         <div className="opponent">
           <div className="player-bar">
@@ -142,7 +120,7 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
             <MeldRow melds={mine.exposedMelds} />
           ) : null;
         })()}
-        <div className="hand" ref={handRef}>
+        <div className="hand">
           {sortHand(view.yourHand).map((c) => (
             <CardView
               key={c.id}
