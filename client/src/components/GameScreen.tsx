@@ -266,18 +266,15 @@ function ActionBar({
   const isDrawnKingSelf = isDrawSelf && view.pending?.card.rank === 'TUONG';
   const acceptedDrawnKing = stage === 'ACCEPTED_DRAWN_KING';
   const busy = loadingAction !== null;
-  const primaryLoading = loadingAction === 'PASS' || loadingAction === 'DRAW';
-  const middleLoading = loadingAction === 'EAT' || loadingAction === 'DISCARD';
+  const primaryLoading = loadingAction === 'PASS';
+  const middleLoading =
+    loadingAction === 'EAT' || loadingAction === 'DISCARD' || loadingAction === 'DRAW';
 
   let primaryLabel = 'Bỏ qua';
   let primaryAction: Parameters<typeof sendAction>[1] | null = null;
   let primaryEnabled = false;
 
-  if (myTurn && stage === 'DRAW') {
-    primaryLabel = 'Bốc bài';
-    primaryAction = { type: 'DRAW' };
-    primaryEnabled = true;
-  } else if (myTurn && reacting) {
+  if (myTurn && reacting) {
     primaryLabel = isDrawnKingSelf ? 'Nhận Tướng' : isDrawSelf ? 'Bỏ lá bốc' : 'Bỏ qua';
     primaryAction = isDrawnKingSelf ? { type: 'EAT', cardIds: [] } : { type: 'PASS' };
     primaryEnabled = true;
@@ -286,21 +283,32 @@ function ActionBar({
     primaryEnabled = true;
   }
 
+  const middleIsDraw = myTurn && stage === 'DRAW';
   const middleIsDiscard =
     stage === 'DISCARD' || (acceptedDrawnKing && selected.length <= 1);
-  const middleLabel = middleIsDiscard ? 'Đánh' : selected.length > 0 ? `Ăn (${selected.length})` : 'Ăn';
+  const middleLabel = middleIsDraw
+    ? 'Bốc bài'
+    : middleIsDiscard
+      ? 'Đánh'
+      : selected.length > 0
+        ? `Ăn (${selected.length})`
+        : 'Ăn';
   const canEatWinningKingAlone =
     checkingWin && selected.length === 0 && view.pending?.card.rank === 'TUONG';
-  const middleEnabled = middleIsDiscard
-    ? myTurn && selected.length === 1
-    : myTurn &&
-      (reacting || checkingWin || acceptedDrawnKing) &&
-      (selected.length > 0 || canEatWinningKingAlone);
-  const middleAction: Parameters<typeof sendAction>[1] | null = middleIsDiscard
-    ? selected.length === 1
-      ? { type: 'DISCARD', cardId: selected[0] }
-      : null
-    : { type: 'EAT', cardIds: selected };
+  const middleEnabled = middleIsDraw
+    ? true
+    : middleIsDiscard
+      ? myTurn && selected.length === 1
+      : myTurn &&
+        (reacting || checkingWin || acceptedDrawnKing) &&
+        (selected.length > 0 || canEatWinningKingAlone);
+  const middleAction: Parameters<typeof sendAction>[1] | null = middleIsDraw
+    ? { type: 'DRAW' }
+    : middleIsDiscard
+      ? selected.length === 1
+        ? { type: 'DISCARD', cardId: selected[0] }
+        : null
+      : { type: 'EAT', cardIds: selected };
   const winEnabled = myTurn && (readyToWin || (stage === 'DISCARD' && !view.pending));
 
   return (
