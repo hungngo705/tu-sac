@@ -218,10 +218,6 @@ function ActionBar({
     primaryLabel = 'Bốc bài';
     primaryAction = { type: 'DRAW' };
     primaryEnabled = true;
-  } else if (myTurn && (stage === 'DISCARD' || acceptedDrawnKing)) {
-    primaryLabel = 'Đánh lá này';
-    primaryAction = selected.length === 1 ? { type: 'DISCARD', cardId: selected[0] } : null;
-    primaryEnabled = selected.length === 1;
   } else if (myTurn && reacting) {
     primaryLabel = isDrawnKingSelf ? 'Nhận Tướng' : isDrawSelf ? 'Bỏ lá bốc' : 'Bỏ qua';
     primaryAction = isDrawnKingSelf ? { type: 'EAT', cardIds: [] } : { type: 'PASS' };
@@ -231,7 +227,17 @@ function ActionBar({
     primaryEnabled = true;
   }
 
-  const eatEnabled = myTurn && (reacting || acceptedDrawnKing) && selected.length > 0;
+  const middleIsDiscard =
+    stage === 'DISCARD' || (acceptedDrawnKing && selected.length <= 1);
+  const middleLabel = middleIsDiscard ? 'Đánh' : `Ăn (${selected.length})`;
+  const middleEnabled = middleIsDiscard
+    ? myTurn && selected.length === 1
+    : myTurn && (reacting || acceptedDrawnKing) && selected.length > 0;
+  const middleAction: Parameters<typeof sendAction>[1] | null = middleIsDiscard
+    ? selected.length === 1
+      ? { type: 'DISCARD', cardId: selected[0] }
+      : null
+    : { type: 'EAT', cardIds: selected };
   const winEnabled = myTurn && stage !== 'DRAW';
 
   return (
@@ -245,10 +251,10 @@ function ActionBar({
       </button>
       <button
         className="btn btn--eat"
-        disabled={!eatEnabled}
-        onClick={() => onAct({ type: 'EAT', cardIds: selected })}
+        disabled={!middleEnabled}
+        onClick={() => middleAction && onAct(middleAction)}
       >
-        Ăn ({selected.length})
+        {middleLabel}
       </button>
       <button
         className="btn btn--danger"
