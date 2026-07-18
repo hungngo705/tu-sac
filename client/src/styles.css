@@ -112,6 +112,31 @@ body {
 .btn:disabled {
   opacity: 0.5;
 }
+.btn.is-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: wait;
+}
+.btn.is-loading:disabled {
+  opacity: 0.85;
+}
+.btn.is-loading::before {
+  content: '';
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: button-loading-spin 0.7s linear infinite;
+}
+@keyframes button-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .btn--ghost {
   background: transparent;
   border: 2px solid var(--gold);

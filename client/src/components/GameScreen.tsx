@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GameStateView } from '@shared/types';
 import { sendAction } from '../net';
 import { CardView } from './CardView';
@@ -12,10 +12,27 @@ interface Props {
 
 export function GameScreen({ view, roomId, onToast, onHome }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
+  const [loadingAction, setLoadingAction] = useState<Parameters<typeof sendAction>[1]['type'] | null>(null);
+  const loadingStartedAt = useRef(0);
 
   useEffect(() => {
     setSelected([]);
   }, [view.turn, view.turnStage, view.pending?.card.id]);
+
+  useEffect(() => {
+    if (!loadingAction) return;
+    const remaining = Math.max(0, 300 - (Date.now() - loadingStartedAt.current));
+    const timer = window.setTimeout(() => setLoadingAction(null), remaining);
+    return () => window.clearTimeout(timer);
+    // Chỉ kết thúc loading khi server gửi về một state mới.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  useEffect(() => {
+    if (!loadingAction) return;
+    const timer = window.setTimeout(() => setLoadingAction(null), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [loadingAction]);
 
   const me = view.you;
   const opp = view.players.find((p) => p.seat !== me);
@@ -27,6 +44,9 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
   }
 
   function act(a: Parameters<typeof sendAction>[1]) {
+    if (loadingAction) return;
+    loadingStartedAt.current = Date.now();
+    setLoadingAction(a.type);
     sendAction(roomId, a);
     setSelected([]);
   }
@@ -47,8 +67,14 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
               : 'Đã đủ người. Sẵn sàng bắt đầu!'}
           </p>
           {me === 0 && view.players.length === 2 && (
-            <button className="btn" style={{ maxWidth: 240 }} onClick={() => act({ type: 'START' })}>
-              Bắt đầu ván
+            <button
+              className={`btn ${loadingAction === 'START' ? 'is-loading' : ''}`}
+              style={{ maxWidth: 240 }}
+              disabled={loadingAction !== null}
+              aria-busy={loadingAction === 'START'}
+              onClick={() => act({ type: 'START' })}
+            >
+              {loadingAction === 'START' ? 'Đang bắt đầu...' : 'Bắt đầu ván'}
             </button>
           )}
         </div>
@@ -126,6 +152,7 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
               key={c.id}
               card={c}
               selected={selected.includes(c.id)}
+              disabled={loadingAction !== null}
               onClick={() => toggle(c.id)}
             />
           ))}
@@ -135,13 +162,18 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
           view={view}
           selected={selected}
           myTurn={myTurn}
+          loadingAction={loadingAction}
           onAct={act}
           onToast={onToast}
         />
       </div>
 
       {view.phase === 'FINISHED' && view.scoreResult && (
-        <ResultOverlay view={view} onRematch={() => act({ type: 'REMATCH' })} />
+        <ResultOverlay
+          view={view}
+          loading={loadingAction === 'REMATCH'}
+          onRematch={() => act({ type: 'REMATCH' })}
+        />
       )}
     </div>
   );
@@ -156,13 +188,19 @@ function TopBar({
   onToast: (m: string) => void;
   onHome: () => void;
 }) {
+  const [copying, setCopying] = useState(false);
+
   async function copyLink() {
+    if (copying) return;
+    setCopying(true);
     const url = `${location.origin}?room=${view.roomId}`;
     try {
       await navigator.clipboard.writeText(url);
       onToast('Đã copy link mời');
     } catch {
       onToast(`Mã phòng: ${view.roomId}`);
+    } finally {
+      setCopying(false);
     }
   }
   return (
@@ -175,8 +213,13 @@ function TopBar({
           Phòng <span className="room-code">{view.roomId}</span>
         </span>
       </div>
-      <button className="btn btn--ghost invite-btn" onClick={copyLink}>
-        Phương đẹp gái
+      <button
+        className={`btn btn--ghost invite-btn ${copying ? 'is-loading' : ''}`}
+        disabled={copying}
+        aria-busy={copying}
+        onClick={copyLink}
+      >
+        {copying ? 'Đang sao chép...' : 'Phương đẹp gái'}
       </button>
     </div>
   );
@@ -203,12 +246,14 @@ function ActionBar({
   view,
   selected,
   myTurn,
+  loadingAction,
   onAct,
   onToast,
 }: {
   view: GameStateView;
   selected: string[];
   myTurn: boolean;
+  loadingAction: Parameters<typeof sendAction>[1]['type'] | null;
   onAct: (a: Parameters<typeof sendAction>[1]) => void;
   onToast: (m: string) => void;
 }) {
@@ -220,6 +265,9 @@ function ActionBar({
   const isDrawSelf = stage === 'REACT_DRAW_SELF';
   const isDrawnKingSelf = isDrawSelf && view.pending?.card.rank === 'TUONG';
   const acceptedDrawnKing = stage === 'ACCEPTED_DRAWN_KING';
+  const busy = loadingAction !== null;
+  const primaryLoading = loadingAction === 'PASS' || loadingAction === 'DRAW';
+  const middleLoading = loadingAction === 'EAT' || loadingAction === 'DISCARD';
 
   let primaryLabel = 'Bỏ qua';
   let primaryAction: Parameters<typeof sendAction>[1] | null = null;
@@ -258,25 +306,28 @@ function ActionBar({
   return (
     <div className="actions">
       <button
-        className="btn btn--ghost"
-        disabled={!primaryEnabled}
+        className={`btn btn--ghost ${primaryLoading ? 'is-loading' : ''}`}
+        disabled={!primaryEnabled || busy}
+        aria-busy={primaryLoading}
         onClick={() => primaryAction && onAct(primaryAction)}
       >
-        {primaryLabel}
+        {primaryLoading ? 'Đang xử lý...' : primaryLabel}
       </button>
       <button
-        className="btn btn--eat"
-        disabled={!middleEnabled}
+        className={`btn btn--eat ${middleLoading ? 'is-loading' : ''}`}
+        disabled={!middleEnabled || busy}
+        aria-busy={middleLoading}
         onClick={() => middleAction && onAct(middleAction)}
       >
-        {middleLabel}
+        {middleLoading ? 'Đang xử lý...' : middleLabel}
       </button>
       <button
-        className="btn btn--danger"
-        disabled={!winEnabled}
+        className={`btn btn--danger ${loadingAction === 'DECLARE_WIN' ? 'is-loading' : ''}`}
+        disabled={!winEnabled || busy}
+        aria-busy={loadingAction === 'DECLARE_WIN'}
         onClick={() => onAct({ type: 'DECLARE_WIN', cardIds: selected })}
       >
-        Tới!
+        {loadingAction === 'DECLARE_WIN' ? 'Đang xử lý...' : 'Tới!'}
       </button>
     </div>
   );
@@ -304,7 +355,15 @@ function cardFromId(id: string) {
   return { id, rank: rank as never, color: color as never };
 }
 
-function ResultOverlay({ view, onRematch }: { view: GameStateView; onRematch: () => void }) {
+function ResultOverlay({
+  view,
+  loading,
+  onRematch,
+}: {
+  view: GameStateView;
+  loading: boolean;
+  onRematch: () => void;
+}) {
   const r = view.scoreResult!;
   const iWon = r.winner === view.you;
   const winnerResult = r.perPlayer.find((player) => player.seat === r.winner);
@@ -340,8 +399,14 @@ function ResultOverlay({ view, onRematch }: { view: GameStateView; onRematch: ()
             </div>
           );
         })}
-        <button className="btn" style={{ marginTop: 16 }} onClick={onRematch}>
-          Chơi lại
+        <button
+          className={`btn ${loading ? 'is-loading' : ''}`}
+          style={{ marginTop: 16 }}
+          disabled={loading}
+          aria-busy={loading}
+          onClick={onRematch}
+        >
+          {loading ? 'Đang tạo ván...' : 'Chơi lại'}
         </button>
       </div>
     </div>
