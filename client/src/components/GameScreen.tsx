@@ -60,43 +60,45 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
     <div className="game">
       <TopBar view={view} onToast={onToast} onHome={onHome} />
 
-      {/* Đối thủ */}
-      <div className="opponent">
-        <div className="player-bar">
-          <span className={`dot ${opp?.connected ? '' : 'off'}`} />
-          <span className="name">{opp?.name || 'Đối thủ'}</span>
-          <span style={{ opacity: 0.7 }}>· {opp?.handCount ?? 0} lá</span>
-          {view.turn !== me && view.phase === 'PLAYING' && <span className="turn-tag">Lượt</span>}
-        </div>
-        {opp && opp.exposedMelds.length > 0 && (
-          <MeldRow melds={opp.exposedMelds} />
-        )}
-      </div>
-
-      {/* Giữa bàn: nọc, lá vừa đánh, bài đã bỏ */}
-      <div className="center">
-        <div className="wall-info">
-          <span>Nọc: {view.wallCount}</span>
-          {view.lastAction && <span style={{ opacity: 0.7 }}>{view.lastAction}</span>}
-        </div>
-
-        <div className={`pending ${latestCard ? '' : 'pending--empty'}`}>
-          <span className="label">
-            {latestCard
-              ? latestCard.source === 'DRAW'
-                ? 'Lá vừa bốc lật'
-                : 'Lá vừa đánh'
-              : 'Lá vừa đánh / bốc lật'}
-            {view.pending && ' (chờ xử lý)'}
-          </span>
-          {latestCard ? (
-            <CardView card={latestCard.card} disabled />
-          ) : (
-            <span className="pending-placeholder">Chưa có lá</span>
+      <div className="table-area">
+        {/* Đối thủ */}
+        <div className="opponent">
+          <div className="player-bar">
+            <span className={`dot ${opp?.connected ? '' : 'off'}`} />
+            <span className="name">{opp?.name || 'Đối thủ'}</span>
+            <span style={{ opacity: 0.7 }}>· {opp?.handCount ?? 0} lá</span>
+            {view.turn !== me && view.phase === 'PLAYING' && <span className="turn-tag">Lượt</span>}
+          </div>
+          {opp && opp.exposedMelds.length > 0 && (
+            <MeldRow melds={opp.exposedMelds} />
           )}
         </div>
 
-        <DiscardPiles view={view} />
+        {/* Giữa bàn: nọc, lá vừa đánh, bài đã bỏ */}
+        <div className="center">
+          <div className="wall-info">
+            <span>Nọc: {view.wallCount}</span>
+            {view.lastAction && <span style={{ opacity: 0.7 }}>{view.lastAction}</span>}
+          </div>
+
+          <div className={`pending ${latestCard ? '' : 'pending--empty'}`}>
+            <span className="label">
+              {latestCard
+                ? latestCard.source === 'DRAW'
+                  ? 'Lá vừa bốc lật'
+                  : 'Lá vừa đánh'
+                : 'Lá vừa đánh / bốc lật'}
+              {view.pending && ' (chờ xử lý)'}
+            </span>
+            {latestCard ? (
+              <CardView card={latestCard.card} disabled />
+            ) : (
+              <span className="pending-placeholder">Chưa có lá</span>
+            )}
+          </div>
+
+          <DiscardPiles view={view} />
+        </div>
       </div>
 
       {/* Bài của tôi */}

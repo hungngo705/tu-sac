@@ -19,14 +19,16 @@ html,
 body,
 #root {
   margin: 0;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   width: 100%;
 }
 
 html,
 body {
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -38,7 +40,9 @@ body {
 }
 
 .app {
-  min-height: 100dvh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   padding-top: var(--safe-top);
@@ -146,7 +150,9 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - var(--safe-top));
+  height: calc(100dvh - var(--safe-top));
+  min-height: 0;
+  overflow: hidden;
 }
 
 .topbar {
@@ -214,6 +220,16 @@ body {
 .me {
   flex: 0 0 auto;
   padding: 10px;
+}
+
+.table-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overflow-anchor: none;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .player-bar {
@@ -360,6 +376,11 @@ body {
 .hand-area {
   flex: 0 0 auto;
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 62dvh;
+  overflow: hidden;
   background: rgba(0, 0, 0, 0.3);
   padding: 10px 6px calc(10px + var(--safe-bottom));
   border-top: 2px solid var(--gold);
@@ -389,15 +410,20 @@ body {
   }
 }
 .hand {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   justify-content: center;
-  max-height: none;
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .actions {
+  flex: 0 0 auto;
   display: flex;
   gap: 8px;
   padding: 8px 10px 0;
