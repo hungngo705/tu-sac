@@ -513,7 +513,9 @@ body {
   color: var(--ink);
   border-radius: 16px;
   padding: 24px;
-  max-width: 360px;
+  max-width: 680px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
   width: 100%;
   text-align: center;
 }
@@ -527,6 +529,20 @@ body {
   padding: 6px 0;
   border-bottom: 1px dashed var(--paper-edge);
   font-size: 15px;
+}
+.winning-hand {
+  margin: 14px 0;
+  padding: 10px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 10px;
+  background: rgba(201, 151, 26, 0.08);
+}
+.winning-hand h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+.winning-hand .meld-row {
+  padding-bottom: 0;
 }
 
 .toast {

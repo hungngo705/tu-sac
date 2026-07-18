@@ -307,11 +307,19 @@ function cardFromId(id: string) {
 function ResultOverlay({ view, onRematch }: { view: GameStateView; onRematch: () => void }) {
   const r = view.scoreResult!;
   const iWon = r.winner === view.you;
+  const winnerResult = r.perPlayer.find((player) => player.seat === r.winner);
+  const winnerName = view.players.find((player) => player.seat === r.winner)?.name;
   return (
     <div className="overlay">
       <div className="result-card">
         <h2>{iWon ? 'Bạn thắng! 🎉' : 'Bạn thua'}</h2>
         <p>{r.summary}</p>
+        {winnerResult && (
+          <section className="winning-hand">
+            <h3>Bài tới của {winnerName}</h3>
+            <MeldRow melds={winnerResult.melds} />
+          </section>
+        )}
         {r.perPlayer.map((pp) => {
           const name = view.players.find((p) => p.seat === pp.seat)?.name;
           const detail = [
