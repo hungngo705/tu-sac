@@ -23,18 +23,6 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
   const opp = view.players.find((p) => p.seat !== me);
   const myTurn = view.turn === me;
   const latestCard = view.pending ?? view.lastRevealed;
-  const scrollEventKey = [
-    view.phase,
-    view.turn,
-    view.turnStage,
-    view.pending?.card.id ?? '',
-    view.lastAction ?? '',
-    view.yourHand.length,
-    ...view.players.map(
-      (player) =>
-        `${player.handCount}:${player.exposedMelds.length}:${player.discardPile.length}`
-    ),
-  ].join('|');
 
   useLayoutEffect(() => {
     const scrollToBottom = () => {
@@ -49,8 +37,12 @@ export function GameScreen({ view, roomId, onToast, onHome }: Props) {
 
     scrollToBottom();
     const frame = window.requestAnimationFrame(scrollToBottom);
-    return () => window.cancelAnimationFrame(frame);
-  }, [scrollEventKey]);
+    const timer = window.setTimeout(scrollToBottom, 100);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [view]);
 
   function toggle(id: string) {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
