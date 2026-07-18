@@ -191,6 +191,57 @@ console.log('== engine luật lượt / ăn bài ==');
   check('ngoài lượt không được giành lá bốc bằng bộ lẻ thường', Boolean(applyAction(g, 0, { type: 'EAT', cardIds: [xe.id, phao.id] }).error));
 }
 {
+  const own = c('XE', 'WHITE');
+  const active = c('XE', 'WHITE');
+  const g = gameWith([own], []);
+  g.turn = 1;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('TOT', 'RED', 8)];
+  applyAction(g, 1, { type: 'DRAW' });
+  check('một Xe trắng rác được giật Xe trắng đối thủ bốc để xét Tới', g.turn === 0 && g.turnStage === 'REACT_DRAW_WIN_OTHER');
+  const win = applyAction(g, 0, { type: 'DECLARE_WIN', cardIds: [own.id] });
+  check('giật Xe trắng thành đôi thì Tới', !win.error && g.phase === 'FINISHED' && g.winner === 0);
+}
+{
+  const phao = c('PHAO', 'WHITE');
+  const ma = c('MA', 'WHITE');
+  const active = c('XE', 'WHITE');
+  const g = gameWith([phao, ma], []);
+  g.turn = 1;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('TOT', 'RED', 8)];
+  applyAction(g, 1, { type: 'DRAW' });
+  check('Pháo–Mã trắng được giật Xe trắng đối thủ bốc để xét Tới', g.turn === 0 && g.turnStage === 'REACT_DRAW_WIN_OTHER');
+  const win = applyAction(g, 0, { type: 'DECLARE_WIN', cardIds: [phao.id, ma.id] });
+  check('giật đủ Xe–Pháo–Mã thì Tới', !win.error && g.winner === 0);
+}
+{
+  const tuong = c('TUONG', 'GREEN');
+  const elephant = c('TUONG_ELE', 'GREEN');
+  const active = c('SI', 'GREEN');
+  const g = gameWith([tuong, elephant], []);
+  g.turn = 1;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('TOT', 'RED', 8)];
+  applyAction(g, 1, { type: 'DRAW' });
+  check('Tướng–Tượng được giật Sĩ đối thủ bốc để xét Tới', g.turn === 0 && g.turnStage === 'REACT_DRAW_WIN_OTHER');
+  const win = applyAction(g, 0, { type: 'DECLARE_WIN', cardIds: [tuong.id, elephant.id] });
+  check('giật đủ Tướng–Sĩ–Tượng thì Tới', !win.error && g.winner === 0);
+}
+{
+  const red = c('TOT', 'RED');
+  const green = c('TOT', 'GREEN');
+  const active = c('TOT', 'YELLOW');
+  const g = gameWith([red, green], []);
+  g.turn = 1;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('PHAO', 'WHITE', 8)];
+  applyAction(g, 1, { type: 'DRAW' });
+  check('hai Chốt khác màu được giật Chốt thứ ba để xét Tới', g.turn === 0 && g.turnStage === 'REACT_DRAW_WIN_OTHER');
+  const win = applyAction(g, 0, { type: 'DECLARE_WIN', cardIds: [red.id, green.id] });
+  check('giật đủ nhóm Chốt hợp lệ thì Tới', !win.error && g.winner === 0);
+}
+{
   const pair = same('XE', 'RED', 2);
   const twoTrash = [c('TOT', 'GREEN'), c('TOT', 'WHITE')];
   const active = c('XE', 'RED');
@@ -210,15 +261,16 @@ console.log('== engine luật lượt / ăn bài ==');
   g.turnStage = 'DRAW';
   g.wall = [active, ...same('TOT', 'WHITE', 8)];
   applyAction(g, 1, { type: 'DRAW' });
-  check('đôi Xe đang giữ chân Xe–Pháo–Mã không được giật lá bốc', g.turn === 1 && g.turnStage === 'REACT_DRAW_SELF');
-  applyAction(g, 1, { type: 'PASS' });
-  const eatOdd = applyAction(g, 0, { type: 'EAT', cardIds: [phao.id, ma.id] });
-  check('nếu Xe đó bị đánh ra thì được ăn bằng Pháo–Mã thay vì bắt buộc hạ đôi Xe', !eatOdd.error && g.players[0].exposedMelds[0]?.type === 'XPM');
+  check('đôi Xe không được giật để hạ đôi nhưng Pháo–Mã được ưu tiên giật để Tới', g.turn === 0 && g.turnStage === 'REACT_DRAW_WIN_OTHER');
+  check('đang xét Tới thì không được hạ đôi Xe', Boolean(applyAction(g, 0, { type: 'EAT', cardIds: pair.map((card) => card.id) }).error));
+  const win = applyAction(g, 0, { type: 'DECLARE_WIN', cardIds: [phao.id, ma.id] });
+  check('giật Xe ghép Pháo–Mã và giữ đôi Xe thì bài tròn để Tới', !win.error && g.winner === 0);
 }
 {
   const khap = same('PHAO', 'GREEN', 3);
+  const trash = c('SI', 'WHITE');
   const active = c('PHAO', 'GREEN');
-  const g = gameWith(khap, []);
+  const g = gameWith([...khap, trash], []);
   g.turn = 1;
   g.turnStage = 'DRAW';
   g.wall = [active, ...same('TOT', 'WHITE', 8)];

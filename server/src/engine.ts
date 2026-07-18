@@ -69,20 +69,24 @@ function doDraw(game: InternalGame, seat: Seat): ActionResult {
   const opponent = other(seat);
   const matchingOpponentCards = game.players[opponent].hand.filter((c) => sameFace(c, card));
 
-  // Tướng vừa bốc có thứ tự riêng: người bốc xét Tới trước, kế đến đối thủ.
-  // Nếu không ai Tới, Tướng trả về người bốc để nhận riêng hoặc ghép Sĩ-Tượng.
+  // Tới luôn ưu tiên hơn quyền giật đôi/Khạp thông thường. Người bốc được xét trước;
+  // nếu họ chưa tròn bài thì đối thủ được giật bất kỳ lá nào hoàn tất nhóm cuối để Tới.
+  if (canWinWithPending(game, seat)) {
+    game.turn = seat;
+    game.turnStage = 'REACT_DRAW_WIN_SELF';
+    game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)} — được ưu tiên xét Tới.`;
+    return {};
+  }
+  if (canWinWithPending(game, opponent)) {
+    game.turn = opponent;
+    game.turnStage = 'REACT_DRAW_WIN_OTHER';
+    game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}. ${game.players[opponent].name} được giật lá để Tới.`;
+    return {};
+  }
+
+  // Tướng không ai Tới thì trả về người bốc để nhận riêng hoặc ghép Sĩ-Tượng.
   if (card.rank === 'TUONG') {
-    if (canWinWithPending(game, seat)) {
-      game.turn = seat;
-      game.turnStage = 'REACT_DRAW_WIN_SELF';
-      game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)} — được ưu tiên xét Tới.`;
-    } else if (canWinWithPending(game, opponent)) {
-      game.turn = opponent;
-      game.turnStage = 'REACT_DRAW_WIN_OTHER';
-      game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}. ${game.players[opponent].name} được xét Tới.`;
-    } else {
-      returnDrawnKingToDrawer(game);
-    }
+    returnDrawnKingToDrawer(game);
     return {};
   }
 
