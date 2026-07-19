@@ -319,6 +319,10 @@ body {
   font-size: 15px;
   opacity: 0.8;
 }
+.pending .card {
+  border: 3px solid var(--gold);
+  box-shadow: 0 0 0 2px rgba(11, 61, 46, 0.9), 0 0 14px rgba(212, 175, 55, 0.85);
+}
 .pending-placeholder {
   display: grid;
   place-items: center;
