@@ -49,6 +49,7 @@ export function isEvenMeld(type: MeldType): boolean {
 }
 
 type Matrix = number[][]; // [rankIndex][colorIndex] = số lá
+type LockedKhapMatrix = boolean[][];
 
 const RANK_IDX: Record<Rank, number> = {
   TUONG: 0,
@@ -67,6 +68,10 @@ function toMatrix(cards: Card[]): Matrix {
   return m;
 }
 
+function lockedKhapMatrix(m: Matrix): LockedKhapMatrix {
+  return m.map((row) => row.map((count) => count === 3));
+}
+
 // Một nhóm trong lời giải phân rã: kiểu + các ô (rank,color) nó dùng.
 interface GroupDesc {
   type: MeldType;
@@ -83,7 +88,12 @@ function firstNonEmpty(m: Matrix): { r: number; c: number } | null {
 }
 
 // Sinh mọi nhóm hợp lệ CHỨA ô (r,c) làm phần tử "sớm nhất" (để không trùng lặp).
-function candidateGroups(m: Matrix, r: number, c: number): GroupDesc[] {
+function candidateGroups(
+  m: Matrix,
+  r: number,
+  c: number,
+  lockedKhap: LockedKhapMatrix
+): GroupDesc[] {
   const out: GroupDesc[] = [];
   const rank = RANK_LIST[r];
   const cnt = m[r][c];
@@ -125,7 +135,18 @@ function candidateGroups(m: Matrix, r: number, c: number): GroupDesc[] {
     }
   }
 
-  return out;
+  return out.filter((group) => {
+    const touchesLockedKhap = group.cells.some((x) => lockedKhap[x.r][x.c]);
+    if (!touchesLockedKhap) return true;
+
+    // Khạp có sẵn trên tay là một khối khóa: không lấy dù chỉ một lá của Khạp
+    // để ghép bộ lẻ, đôi, Tướng đơn hoặc nhóm Chốt khác màu.
+    return (
+      group.type === 'KHAN' &&
+      group.cells.length === 3 &&
+      group.cells.every((x) => x.r === r && x.c === c && lockedKhap[x.r][x.c])
+    );
+  });
 }
 
 function cell(r: number, c: number, n: number) {
@@ -134,14 +155,17 @@ function cell(r: number, c: number, n: number) {
 
 // Tìm cách phân rã cho ĐIỂM CAO NHẤT (hidden values) và tính hợp lệ.
 // Trả về { groups, points } tốt nhất, hoặc null nếu không chia hết.
-function bestDecompose(m: Matrix): { groups: GroupDesc[]; points: number } | null {
+function bestDecompose(
+  m: Matrix,
+  lockedKhap: LockedKhapMatrix
+): { groups: GroupDesc[]; points: number } | null {
   const pivot = firstNonEmpty(m);
   if (!pivot) return { groups: [], points: 0 };
-  const cands = candidateGroups(m, pivot.r, pivot.c);
+  const cands = candidateGroups(m, pivot.r, pivot.c, lockedKhap);
   let best: { groups: GroupDesc[]; points: number } | null = null;
   for (const g of cands) {
     for (const cell of g.cells) m[cell.r][cell.c]--;
-    const rest = bestDecompose(m);
+    const rest = bestDecompose(m, lockedKhap);
     for (const cell of g.cells) m[cell.r][cell.c]++; // hoàn tác
     if (rest) {
       const pts = meldPoints(g.type, g.cells.length, false) + rest.points;
@@ -182,7 +206,7 @@ function groupToMeld(g: GroupDesc, pool: Card[], used: Set<string>, exposed: boo
 // Phân tích bài ẩn (còn úp trên tay). Điểm dùng giá trị "ẩn".
 export function analyzeHand(cards: Card[]): HandAnalysis {
   const m = toMatrix(cards);
-  const best = bestDecompose(m);
+  const best = bestDecompose(m, lockedKhapMatrix(m));
   if (!best) return { valid: false, totalPoints: 0, melds: [] };
   const used = new Set<string>();
   const melds = best.groups.map((g) => groupToMeld(g, cards, used, false));
@@ -246,6 +270,7 @@ export function isWinMeld(cards: Card[]): boolean {
 // Dùng cho luật "không thêm rác" khi ăn và kiểm tra điều kiện tới.
 export function countTrash(cards: Card[]): number {
   const m = toMatrix(cards);
+  const lockedKhap = lockedKhapMatrix(m);
   const memo = new Map<string, number>();
 
   function visit(): number {
@@ -256,16 +281,18 @@ export function countTrash(cards: Card[]): number {
     if (!pivot) return 0;
 
     let best = Number.POSITIVE_INFINITY;
-    for (const g of candidateGroups(m, pivot.r, pivot.c)) {
+    for (const g of candidateGroups(m, pivot.r, pivot.c, lockedKhap)) {
       for (const x of g.cells) m[x.r][x.c]--;
       best = Math.min(best, visit());
       for (const x of g.cells) m[x.r][x.c]++;
     }
 
-    // Coi một bản sao tại ô đầu tiên là rác rồi tiếp tục tối ưu phần còn lại.
-    m[pivot.r][pivot.c]--;
-    best = Math.min(best, 1 + visit());
-    m[pivot.r][pivot.c]++;
+    // Không được tách lá khỏi Khạp để tính thành rác hay ghép vào nhóm khác.
+    if (!lockedKhap[pivot.r][pivot.c]) {
+      m[pivot.r][pivot.c]--;
+      best = Math.min(best, 1 + visit());
+      m[pivot.r][pivot.c]++;
+    }
     memo.set(key, best);
     return best;
   }
@@ -288,18 +315,23 @@ export function violatesBaiBung(handCards: Card[], eatCards: Card[]): boolean {
   if (eatCards.length !== 2) return false;
   const [a, b] = eatCards;
   if (a.rank !== b.rank || a.color !== b.color) return false;
-  const rank = a.rank;
-  const color = a.color;
-  const fam = LE_FAMILIES.find((f) => f.includes(rank));
+  const fam = LE_FAMILIES.find((f) => f.includes(a.rank));
   if (!fam) return false; // Tốt/Sĩ... không thuộc bộ lẻ 3-quân
 
-  // Đếm số lá cùng màu còn lại trên tay (sau khi bỏ 2 lá dùng để ăn).
   const remaining = handCards.filter((c) => !(eatCards.some((e) => e.id === c.id)));
-  const partners = fam.filter((p) => p !== rank);
-  const hasBothPartners = partners.every((p) =>
-    remaining.some((c) => c.rank === p && c.color === color)
+  const stillHasSameRank = remaining.some(
+    (card) => card.rank === a.rank && card.color === a.color
   );
-  // Còn lá cùng loại (rank,color) khác trên tay thì bộ lẻ vẫn ghép được -> không phạm.
-  const stillHasSameRank = remaining.some((c) => c.rank === rank && c.color === color);
-  return hasBothPartners && !stillHasSameRank;
+  if (stillHasSameRank) return false;
+
+  const partnerCounts = fam
+    .filter((rank) => rank !== a.rank)
+    .map(
+      (rank) =>
+        remaining.filter((card) => card.rank === rank && card.color === a.color).length
+    );
+
+  // Chỉ cấm khi đôi đang giữ đúng hai chân lẻ đơn độc. Nếu một chân còn hai lá
+  // (2 Xe + 2 Pháo + 1 Mã chẳng hạn), chân đó vẫn tạo đôi nên được quyền giật.
+  return partnerCounts.length === 2 && partnerCounts.every((count) => count === 1);
 }

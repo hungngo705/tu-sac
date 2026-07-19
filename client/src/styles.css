@@ -467,9 +467,9 @@ body {
 
 /* ====== Card ====== */
 .card {
-  width: 50px;
-  height: 72px;
-  border-radius: 7px;
+  width: 43px;
+  height: 56px;
+  border-radius: 6px;
   background: var(--paper);
   border: 1.5px solid rgba(0, 0, 0, 0.68);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -483,8 +483,8 @@ body {
   transition: transform 0.1s, box-shadow 0.1s;
 }
 .card--small {
-  width: 39px;
-  height: 57px;
+  width: 33px;
+  height: 43px;
 }
 .card--selected {
   transform: translateY(-12px);
@@ -492,22 +492,13 @@ body {
   border-color: var(--gold);
 }
 .card__glyph {
-  font-size: 30px;
+  font-size: 29px;
   line-height: 1;
   font-weight: 700;
   color: #0b0b0b;
 }
 .card--small .card__glyph {
   font-size: 22px;
-}
-.card__label {
-  font-size: 12px;
-  margin-top: 2px;
-  opacity: 0.85;
-  color: #0b0b0b;
-}
-.card--small .card__label {
-  font-size: 10px;
 }
 .card:disabled {
   cursor: default;

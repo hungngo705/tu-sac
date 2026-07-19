@@ -75,13 +75,13 @@ function doDraw(game: InternalGame, seat: Seat): ActionResult {
   if (canWinWithPending(game, seat)) {
     game.turn = seat;
     game.turnStage = 'REACT_DRAW_WIN_SELF';
-    game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)} — được ưu tiên xét Tới.`;
+    game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}.`;
     return {};
   }
   if (canWinWithPending(game, opponent)) {
     game.turn = opponent;
     game.turnStage = 'REACT_DRAW_WIN_OTHER';
-    game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}. ${game.players[opponent].name} được giật lá để Tới.`;
+    game.lastAction = `${game.players[seat].name} bốc lật ${cardLabel(card)}.`;
     return {};
   }
 
@@ -183,7 +183,7 @@ function doEat(game: InternalGame, seat: Seat, cardIds: string[]): ActionResult 
     game.turn = seat;
     game.turnStage = 'READY_TO_WIN';
     game.mustDiscard = null;
-    game.lastAction = `${p.name} ăn ${cardLabel(pending.card)} và đã tròn bài — hãy bấm Tới.`;
+    game.lastAction = `${p.name} ăn ${cardLabel(pending.card)} tạo nhóm.`;
     return {};
   }
 
@@ -277,7 +277,7 @@ function doPass(game: InternalGame, seat: Seat): ActionResult {
     if (canWinWithPending(game, opponent)) {
       game.turn = opponent;
       game.turnStage = 'REACT_DRAW_WIN_OTHER';
-      game.lastAction = `${game.players[pending.from].name} không Tới. ${game.players[opponent].name} được xét Tới.`;
+      game.lastAction = `${game.players[pending.from].name} bỏ qua.`;
     } else {
       returnDrawnKingToDrawer(game);
     }
@@ -422,7 +422,7 @@ function returnDrawnKingToDrawer(game: InternalGame): void {
   const pending = game.pending!;
   game.turn = pending.from;
   game.turnStage = 'REACT_DRAW_SELF';
-  game.lastAction = `Không ai Tới. ${game.players[pending.from].name} xử lý ${cardLabel(pending.card)}.`;
+  game.lastAction = `${game.players[pending.from].name} xử lý ${cardLabel(pending.card)}.`;
 }
 
 // Kiểm tra có ít nhất một cách dùng lá đang chờ làm nhóm cuối cùng để Tới.

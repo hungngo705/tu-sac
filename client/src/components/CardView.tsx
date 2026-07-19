@@ -21,7 +21,6 @@ export function CardView({ card, selected, small, onClick, disabled }: Props) {
       aria-label={`${RANK_LABEL[card.rank]} ${card.color}`}
     >
       <span className="card__glyph">{RANK_GLYPH[card.rank]}</span>
-      <span className="card__label">{RANK_LABEL[card.rank]}</span>
     </button>
   );
 }

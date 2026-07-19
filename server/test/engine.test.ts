@@ -69,6 +69,22 @@ check('quản 4 giống ẩn = 8 lệnh', analyzeHand(same('PHAO', 'YELLOW', 4))
 check('4 Tốt/Chốt đủ màu = 4 lệnh', analyzeHand([c('TOT', 'RED'), c('TOT', 'GREEN'), c('TOT', 'YELLOW'), c('TOT', 'WHITE')]).totalPoints === 4);
 check('Tướng-Sĩ-Tượng = 1 lệnh', analyzeHand([c('TUONG', 'RED'), c('SI', 'RED'), c('TUONG_ELE', 'RED')]).totalPoints === 1);
 
+const lockedKhapCases: { rank: Rank; partners: Card[] }[] = [
+  { rank: 'TUONG', partners: [c('SI', 'RED'), c('TUONG_ELE', 'RED')] },
+  { rank: 'SI', partners: [c('TUONG', 'RED'), c('TUONG_ELE', 'RED')] },
+  { rank: 'TUONG_ELE', partners: [c('TUONG', 'RED'), c('SI', 'RED')] },
+  { rank: 'XE', partners: [c('PHAO', 'RED'), c('MA', 'RED')] },
+  { rank: 'PHAO', partners: [c('XE', 'RED'), c('MA', 'RED')] },
+  { rank: 'MA', partners: [c('XE', 'RED'), c('PHAO', 'RED')] },
+  { rank: 'TOT', partners: [c('TOT', 'GREEN'), c('TOT', 'YELLOW')] },
+];
+for (const testCase of lockedKhapCases) {
+  const hand = [...same(testCase.rank, 'RED', 3), ...testCase.partners];
+  check(`Khạp ${testCase.rank} không được tách lá để ghép nhóm khác`, !analyzeHand(hand).valid);
+}
+const khapXeWithPartners = [...same('XE', 'GREEN', 3), c('PHAO', 'GREEN'), c('MA', 'GREEN')];
+check('Khạp Xe khóa nguyên khối nên Pháo và Mã đều là rác', countTrash(khapXeWithPartners) === 2);
+
 // Đôi Xe đỏ + Xe-Pháo-Mã xanh: đôi 0 + XPM 1 = 1
 const a1 = analyzeHand([...same('XE', 'RED', 2), c('XE', 'GREEN'), c('PHAO', 'GREEN'), c('MA', 'GREEN')]);
 check('đôi + XPM hợp lệ, tổng 1 lệnh', a1.valid && a1.totalPoints === 1);
@@ -84,6 +100,16 @@ check('ăn phá bộ lẻ = phạm bài bụng', violatesBaiBung(handBung, handB
 // Tay có 3 Xe đỏ + Pháo + Mã: ăn bằng 2 lá vẫn còn 1 Xe -> không phạm.
 const handOk = [...same('XE', 'RED', 3), c('PHAO', 'RED'), c('MA', 'RED')];
 check('còn dư lá cùng loại = không phạm', !violatesBaiBung(handOk, handOk.slice(0, 2)));
+// Tay có 2 Xe + 2 Pháo + 1 Mã: hạ đôi Xe vẫn còn đôi Pháo, số rác không tăng.
+const handWithPartnerPair = [
+  ...same('XE', 'RED', 2),
+  ...same('PHAO', 'RED', 2),
+  c('MA', 'RED'),
+];
+check(
+  '2 Xe + 2 Pháo + 1 Mã được giật đôi Xe vì số rác không tăng',
+  !violatesBaiBung(handWithPartnerPair, handWithPartnerPair.slice(0, 2))
+);
 // Tốt không thuộc bộ lẻ 3-quân.
 const handTot = same('TOT', 'RED', 2);
 check('Tốt không dính bài bụng', !violatesBaiBung(handTot, handTot));
@@ -200,6 +226,7 @@ console.log('== engine luật lượt / ăn bài ==');
   g.wall = [active, ...same('TOT', 'RED', 8)];
   applyAction(g, 1, { type: 'DRAW' });
   check('một Xe trắng rác được giật Xe trắng đối thủ bốc để xét Tới', g.turn === 0 && g.turnStage === 'REACT_DRAW_WIN_OTHER');
+  check('thông báo không tiết lộ người khác đang có thể Tới', !g.lastAction?.includes('Tới'));
   const tooSoon = applyAction(g, 0, { type: 'DECLARE_WIN', cardIds: [own.id] });
   const eat = applyAction(g, 0, { type: 'EAT', cardIds: [own.id] });
   const win = applyAction(g, 0, { type: 'DECLARE_WIN' });
@@ -273,6 +300,22 @@ console.log('== engine luật lượt / ăn bài ==');
   const eat = applyAction(g, 0, { type: 'EAT', cardIds: [phao.id, ma.id] });
   const win = applyAction(g, 0, { type: 'DECLARE_WIN' });
   check('Ăn Xe ghép Pháo–Mã và giữ đôi Xe thì bài tròn để Tới', !eat.error && !win.error && g.winner === 0);
+}
+{
+  const pair = same('XE', 'RED', 2);
+  const phaoPair = same('PHAO', 'RED', 2);
+  const ma = c('MA', 'RED');
+  const active = c('XE', 'RED');
+  const g = gameWith([...pair, ...phaoPair, ma], []);
+  g.turn = 1;
+  g.turnStage = 'DRAW';
+  g.wall = [active, ...same('TOT', 'WHITE', 8)];
+  applyAction(g, 1, { type: 'DRAW' });
+  const steal = applyAction(g, 0, { type: 'EAT', cardIds: pair.map((card) => card.id) });
+  check(
+    '2 Xe + 2 Pháo + 1 Mã được giật đôi Xe đối thủ vừa bốc',
+    g.players[0].exposedMelds[0]?.type === 'KHAN' && !steal.error
+  );
 }
 {
   const khap = same('PHAO', 'GREEN', 3);
@@ -358,6 +401,7 @@ console.log('== engine luật lượt / ăn bài ==');
   g.wall = [active, ...same('TOT', 'WHITE', 8)];
   applyAction(g, 0, { type: 'DRAW' });
   check('người bốc Tướng liền bài được ưu tiên Tới trước', g.turn === 0 && g.turnStage === 'REACT_DRAW_WIN_SELF');
+  check('thông báo không nhắc người bốc đang có thể Tới', !g.lastAction?.includes('Tới'));
   const eat = applyAction(g, 0, { type: 'EAT', cardIds: [] });
   const win = applyAction(g, 0, { type: 'DECLARE_WIN' });
   check('người bốc phải Ăn Tướng đơn rồi mới được Tới', !eat.error && !win.error && g.phase === 'FINISHED' && g.winner === 0);
