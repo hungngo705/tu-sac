@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { GameStateView } from '@shared/types';
-import { createRoom, joinRoom, onConnect, onServerError, onState, requestState } from './net';
+import {
+  createRoom,
+  joinRoom,
+  onConnect,
+  onServerError,
+  onState,
+  refreshSocketConnection,
+  requestState,
+} from './net';
 import { Lobby } from './components/Lobby';
 import { GameScreen } from './components/GameScreen';
 
@@ -21,13 +29,39 @@ export default function App() {
   // lại đúng ghế trước khi xin state; chỉ requestState thì server không nhận ra.
   useEffect(() => {
     if (!roomId) return;
+    let lastStateAt = Date.now();
+    let lastRefreshAt = Date.now();
+    const offStateWatchdog = onState(() => {
+      lastStateAt = Date.now();
+    });
+
     requestState(roomId);
     // Redis pub/sub giữa hai Vercel Function instance có thể bị gián đoạn khi
     // một instance reconnect/scale. Poll nhẹ làm đường dự phòng; state vẫn do
     // server-authoritative Redis cung cấp, không tính toán ở client.
     const syncTimer = window.setInterval(() => requestState(roomId), 1_000);
+    // Vercel giới hạn Function WebSocket ở 300 giây. Chủ động thay kết nối sau
+    // 4 phút, đồng thời làm mới sớm nếu 6 giây không nhận được state phản hồi.
+    const listenerTimer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      const listenerIsStale = now - lastStateAt >= 6_000;
+      const scheduledRefresh = now - lastRefreshAt >= 4 * 60_000;
+      if (!listenerIsStale && !scheduledRefresh) return;
+
+      lastRefreshAt = now;
+      lastStateAt = now;
+      refreshSocketConnection();
+    }, 2_000);
     const syncWhenVisible = () => {
-      if (document.visibilityState === 'visible') requestState(roomId);
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastStateAt >= 6_000) {
+        lastRefreshAt = Date.now();
+        lastStateAt = Date.now();
+        refreshSocketConnection();
+        return;
+      }
+      requestState(roomId);
     };
     document.addEventListener('visibilitychange', syncWhenVisible);
     let cancelled = false;
@@ -52,7 +86,9 @@ export default function App() {
     return () => {
       cancelled = true;
       window.clearInterval(syncTimer);
+      window.clearInterval(listenerTimer);
       document.removeEventListener('visibilitychange', syncWhenVisible);
+      offStateWatchdog();
       off();
     };
   }, [roomId]);

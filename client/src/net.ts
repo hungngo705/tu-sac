@@ -17,7 +17,32 @@ export const socket: Socket = io('/', {
   // A polling session can be routed to different Vercel Function instances.
   transports: ['websocket'],
   timeout: 12_000,
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 500,
+  reconnectionDelayMax: 5_000,
+  randomizationFactor: 0.3,
 });
+
+let refreshTimer: number | null = null;
+
+// Làm mới WebSocket trước khi Vercel đóng Function hoặc khi watchdog nhận thấy
+// listener không còn nhận state. Giữ nguyên Socket instance để toàn bộ handler
+// `state`/`error` hiện tại tự tiếp tục hoạt động sau khi kết nối lại.
+export function refreshSocketConnection(): void {
+  if (refreshTimer != null) return;
+
+  if (!socket.connected) {
+    socket.connect();
+    return;
+  }
+
+  socket.disconnect();
+  refreshTimer = window.setTimeout(() => {
+    refreshTimer = null;
+    socket.connect();
+  }, 350);
+}
 
 function waitForConnection(): Promise<void> {
   if (socket.connected) return Promise.resolve();
@@ -63,7 +88,9 @@ export function sendAction(roomId: string, action: GameAction): void {
 }
 
 export function requestState(roomId: string): void {
-  socket.emit('requestState', roomId);
+  // State nền chỉ có giá trị mới nhất. Không xếp hàng hàng chục request cũ khi
+  // mạng chập chờn rồi phát dồn sau lúc reconnect.
+  if (socket.connected) socket.volatile.emit('requestState', roomId);
 }
 
 export function onState(cb: (view: GameStateView) => void): () => void {
